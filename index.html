@@ -42,7 +42,7 @@ dialog{border:0;border-radius:12px;padding:16px;width:min(94vw,440px);background
 dialog::backdrop{background:#0008}
 .row{display:flex;gap:8px}.row>*{flex:1}
 .cr{display:flex;align-items:center;gap:10px;background:var(--card);border:1px solid var(--ln);border-radius:8px;padding:10px;margin-bottom:8px}
-.sw{width:22px;height:22px;border-radius:50%;flex:none}
+.sw{width:30px;height:30px;border-radius:50%;flex:none;border:2px solid #8886;padding:0;margin:0;background:none}
 .empty{text-align:center;color:var(--mu);padding:40px 10px}
 #gw{overflow:auto;background:var(--card);border:1px solid var(--ln);border-radius:8px}
 svg text{fill:var(--tx);font-family:inherit}
@@ -66,7 +66,9 @@ h2{font-size:1rem;margin:14px 0 8px}
 const $=s=>document.querySelector(s);
 const DEF=['Lavori','Fatture','Mail','Chiamate','Foto','Pagamenti','Scadenze'];
 const COL=['#2f6fb5','#c0392b','#8e44ad','#2e8b57','#d98a00','#16a0a0','#c2185b','#6d4c41','#546e7a'];
-let S=JSON.parse(localStorage.getItem('db')||'null')||{upd:0,cats:DEF.map((n,i)=>({n,c:COL[i]})),tasks:[]};
+const DEFC={Lavori:'#f28c28',Fatture:'#29b6f6',Mail:'#ffffff',Chiamate:'#43a047',Foto:'#9e9e9e',Pagamenti:'#e53935',Scadenze:'#fdd835'};
+let S=JSON.parse(localStorage.getItem('db')||'null')||{v:2,upd:0,cats:DEF.map(n=>({n,c:DEFC[n]})),tasks:[]};
+if(!S.v){S.cats.forEach(c=>{if(DEFC[c.n]&&COL.includes(c.c))c.c=DEFC[c.n]});S.v=2;localStorage.setItem('db',JSON.stringify(S))}
 let CFG=JSON.parse(localStorage.getItem('cfg')||'{}');
 let sha=localStorage.getItem('sha')||null;
 let view='list',filt='',showDone=false,timer=null;
@@ -133,13 +135,14 @@ function rList(){
   const list=S.tasks.map((x,i)=>({x,i})).filter(({x})=>(!filt||x.cat===filt)&&(showDone||!x.done));
   if(!list.length)h+='<div class="empty">Niente da fare qui.<br>Tocca + per aggiungere una cosa.</div>';
   list.forEach(({x,i})=>{
-    const d=diff(t,x.due);
-    const cl=x.done?'':d<0?'late':d<=2?'soon':'';
-    const tx=d<0?`scaduta da ${-d} g`:d===0?'scade oggi':d===1?'scade domani':`tra ${d} giorni`;
+    let d=diff(t,x.due);
+    const nowT=new Date().toTimeString().slice(0,5),passed=d===0&&x.tm&&x.tm<nowT;
+    const cl=x.done?'':(d<0||passed)?'late':d<=2?'soon':'';
+    const tx=passed?`scaduta alle ${x.tm}`:d<0?`scaduta da ${-d} g`:d===0?(x.tm?`scade oggi alle ${x.tm}`:'scade oggi'):d===1?'scade domani':`tra ${d} giorni`;
     h+=`<div class="t ${x.done?'done':''}" style="--c:${catOf(x.cat).c}">
     <input type="checkbox" ${x.done?'checked':''} data-ck="${x.id}">
     <div class="tb" data-ed="${x.id}"><div class="tt">${esc(x.t)}</div>
-    <div class="mt">${esc(x.cat)} · inserita ${fmt(x.start)} · entro ${fmt(x.due)}</div>
+    <div class="mt">${esc(x.cat)} · inserita ${fmt(x.start)} · entro ${fmt(x.due)}${x.tm?' ore '+x.tm:''}</div>
     ${x.done?'':`<div class="mt dl ${cl}">${tx}</div>`}</div>
     <div class="mv"><button data-up="${i}">▲</button><button data-dn="${i}">▼</button></div></div>`;
   });
@@ -163,7 +166,7 @@ function rGantt(){
   a.forEach((x,r)=>{
     const y=HH+r*RH,x1=diff(min,x.start)*W,x2=(diff(min,x.due)+1)*W,late=x.due<t;
     s+=`<text x="${Math.max(4,Math.min(x1+4,w-120))}" y="${y+18}" font-size="12" font-weight="600">${esc(x.t.length>28?x.t.slice(0,27)+'…':x.t)}</text>`;
-    s+=`<rect data-ed="${x.id}" x="${x1}" y="${y+24}" width="${Math.max(x2-x1,W/2)}" height="18" rx="5" fill="${catOf(x.cat).c}" ${late?'stroke="#c0392b" stroke-width="2"':''}/>`;
+    s+=`<rect data-ed="${x.id}" x="${x1}" y="${y+24}" width="${Math.max(x2-x1,W/2)}" height="18" rx="5" fill="${catOf(x.cat).c}" stroke="${late?'#c0392b':'#8889'}" stroke-width="${late?2:1}"/>`;
   });
   const tx=diff(min,t)*W+W/2;
   s+=`<line x1="${tx}" x2="${tx}" y1="${HH-4}" y2="${H}" stroke="#c0392b" stroke-width="2" stroke-dasharray="4 3"/></svg>`;
@@ -173,9 +176,9 @@ function rGantt(){
 function rCats(){
   let h=S.cats.map((c,i)=>{
     const n=S.tasks.filter(x=>x.cat===c.n).length;
-    return `<div class="cr"><span class="sw" style="background:${c.c}"></span><b style="flex:1">${esc(c.n)}</b>
+    return `<div class="cr"><input type="color" class="sw" data-cc="${i}" value="${c.c}"><b style="flex:1">${esc(c.n)}</b>
     <span class="mt">${n} attività</span><button class="d" data-dc="${i}">Elimina</button></div>`}).join('');
-  h+=`<h2>Nuova categoria</h2><input id="nc" placeholder="Nome (es. Preventivi)"><button class="p" id="ac" style="width:100%">Aggiungi categoria</button>`;
+  h+=`<h2>Nuova categoria</h2><div class="row" style="align-items:center"><input id="nc" placeholder="Nome (es. Preventivi)" style="flex:4"><input id="ncc" type="color" value="${COL[S.cats.length%COL.length]}" style="flex:1;height:44px;padding:2px"></div><button class="p" id="ac" style="width:100%">Aggiungi categoria</button>`;
   $('#m').innerHTML=h;
 }
 function rSet(){
@@ -196,6 +199,7 @@ function edit(id){
   <label>Categoria</label><select id="e2">${S.cats.map(c=>`<option ${c.n===x.cat?'selected':''}>${esc(c.n)}</option>`).join('')}</select>
   <div class="row"><div><label>Data inserimento</label><input id="e3" type="date" value="${x.start}"></div>
   <div><label>Entro quando</label><input id="e4" type="date" value="${x.due}"></div></div>
+  <label>Ora (facoltativa)</label><input id="e7" type="time" value="${x.tm||''}">
   <label>Priorità: posizione <b id="pv">${pos}</b> di ${N} (1 = più urgente)</label>
   <input id="e5" type="range" min="1" max="${N}" value="${pos}" oninput="pv.textContent=this.value">
   <label>Note</label><textarea id="e6" rows="2">${esc(x.note)}</textarea>
@@ -207,7 +211,7 @@ function edit(id){
     const t=$('#e1').value.trim();if(!t){$('#e1').focus();return}
     let st=$('#e3').value||today(),du=$('#e4').value||st;if(du<st)du=st;
     const o=id?x:{id:'t'+Date.now(),done:false};
-    Object.assign(o,{t,cat:$('#e2').value,start:st,due:du,note:$('#e6').value});
+    Object.assign(o,{t,cat:$('#e2').value,start:st,due:du,note:$('#e6').value,tm:$('#e7').value});
     if(id)S.tasks.splice(S.tasks.indexOf(o),1);
     S.tasks.splice(+$('#e5').value-1,0,o);
     $('#dlg').close();save();
@@ -233,15 +237,18 @@ document.addEventListener('click',e=>{
   if(t.id==='ac'){
     const n=$('#nc').value.trim();if(!n)return;
     if(S.cats.some(c=>c.n.toLowerCase()===n.toLowerCase())){alert('Esiste già una categoria con questo nome.');return}
-    S.cats.push({n,c:COL[S.cats.length%COL.length]});save();return}
+    S.cats.push({n,c:$('#ncc').value});save();return}
   if(t.id==='sv'){
     CFG={repo:$('#s1').value.trim(),token:$('#s2').value.trim(),branch:$('#s3').value.trim()||'main',path:$('#s4').value.trim()||'data.json'};
     localStorage.setItem('cfg',JSON.stringify(CFG));sha=null;pull();render();return}
 });
 document.addEventListener('change',e=>{
+  if(e.target.dataset.cc!==undefined){S.cats[+e.target.dataset.cc].c=e.target.value;save();return}
   const id=e.target.dataset.ck;if(!id)return;
   const x=S.tasks.find(t=>t.id===id);x.done=e.target.checked;save();
 });
+setInterval(()=>{if(!document.hidden&&!$('#dlg').open&&!timer_pending())pull()},60000);
+const timer_pending=()=>false;
 document.addEventListener('visibilitychange',()=>{if(!document.hidden)pull()});
 if('serviceWorker'in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
 render();pull();
