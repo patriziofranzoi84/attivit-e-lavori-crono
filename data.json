@@ -1,5 +1,5 @@
 {
- "upd": 1792530829820,
+ "upd": 1792530953575,
  "cats": [
   {
    "n": "Lavori",
@@ -51,7 +51,7 @@
   },
   {
    "id": "t1792530217551",
-   "done": false,
+   "done": true,
    "t": "wdsa",
    "cat": "Lavori",
    "start": "2026-10-20",
@@ -60,7 +60,7 @@
   },
   {
    "id": "t1792530348150",
-   "done": false,
+   "done": true,
    "t": "dsadgjhfhjhg",
    "cat": "Lavori",
    "start": "2026-10-22",
@@ -69,7 +69,7 @@
   },
   {
    "id": "t1792530387024",
-   "done": false,
+   "done": true,
    "t": "Hhehe",
    "cat": "Lavori",
    "start": "2026-11-12",
