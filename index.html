@@ -23,21 +23,28 @@ nav{position:fixed;bottom:0;left:0;right:0;display:flex;background:var(--card);b
 nav button{flex:1;border:0;background:none;color:var(--mu);padding:12px 2px;font-size:.82rem}
 nav button.on{color:var(--ac);font-weight:700;box-shadow:inset 0 3px var(--ac)}
 .fab{position:fixed;right:16px;bottom:calc(70px + env(safe-area-inset-bottom));width:56px;height:56px;border-radius:50%;border:0;background:var(--ac);color:var(--bg);font-size:2rem;box-shadow:0 3px 10px #0004;z-index:5}
-.chips{display:flex;gap:6px;overflow-x:auto;padding:3px 3px 10px;margin-bottom:4px}
+.chips{display:flex;gap:6px;overflow-x:auto;padding:3px 3px 8px;margin-bottom:2px}
+.chips.sub .chip{padding:4px 11px;font-size:.82rem;border-radius:14px}
 .chip{flex:none;border:2px solid #8886;background:var(--c,var(--card));color:var(--f,var(--tx));border-radius:18px;padding:6px 12px;font-size:.88rem;font-weight:600}
 .chip.on{outline:3px solid var(--tx);outline-offset:1px}
 .chip small{opacity:.75;font-weight:400}
-.t{display:flex;gap:10px;align-items:center;background:var(--card);border:1px solid var(--ln);border-left:8px solid var(--c,#888);border-radius:8px;padding:10px;margin-bottom:8px}
+.t{display:flex;gap:10px;align-items:center;background:var(--card);border:1px solid var(--ln);border-left:8px solid var(--c,#888);border-radius:8px;padding:8px 10px;margin-bottom:6px;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;touch-action:pan-y}
+#tl .t{cursor:grab}
+.t.drag{position:relative;z-index:9;box-shadow:0 6px 18px #0006;cursor:grabbing}
+.t.ov{box-shadow:0 -4px 0 0 var(--ac)}.t.ove{box-shadow:0 4px 0 0 var(--ac)}
+.l1{display:flex;align-items:center;gap:8px}
+.l1 .tt{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.l1 .dl{flex:none;font-size:.8rem}
+.l2{font-size:.78rem;color:var(--mu);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.acts{display:flex;gap:4px;flex:none}
 .t.done{opacity:.6}.t.done .tt{text-decoration:line-through}
 .t input[type=checkbox]{width:24px;height:24px;flex:none;accent-color:var(--ok)}
 .tb{flex:1;min-width:0}
 .tt{font-weight:600;overflow-wrap:anywhere}
 .mt{font-size:.8rem;color:var(--mu)}
 .dl{font-weight:700}.dl.late{color:var(--ko)}.dl.soon{color:var(--wa)}
-.mv{display:flex;flex-direction:column;gap:4px}
-.mv button,.sm{width:34px;height:30px;border:1px solid var(--ln);background:var(--bg);color:var(--tx);border-radius:6px}
-.acts{display:flex;flex-direction:column;gap:4px}
-.acts button{border:1px solid var(--ln);background:var(--bg);color:var(--tx);border-radius:6px;padding:5px 8px;font-size:.8rem}
+.sm{width:34px;height:30px;border:1px solid var(--ln);background:var(--bg);color:var(--tx);border-radius:6px}
+.acts button{border:1px solid var(--ln);background:var(--bg);color:var(--tx);border-radius:6px;padding:4px 8px;font-size:.78rem}
 .acts button.k{color:var(--ko);border-color:var(--ko)}
 .bulk{display:flex;gap:8px;margin-bottom:10px}.bulk button{flex:1}
 button.p{background:var(--ac);color:var(--bg);border:0;border-radius:8px;padding:11px 16px;font-size:1rem}
@@ -76,12 +83,12 @@ h2{font-size:1rem;margin:16px 0 8px}
 
 <script>
 const $=s=>document.querySelector(s);
-const VER='v5';
+const VER='v6';
 const LIST=[['Lavori','#f28c28'],['Ufficio','#5c6bc0'],['Mix','#ab47bc'],['Casa','#8d6e63'],['ADS','#26a69a'],['Mail','#ffffff'],['Chiamate','#43a047'],['Foto','#9e9e9e'],['Scadenze','#fdd835'],['Altro','#78909c']];
 const NEWC=['#2f6fb5','#c0392b','#16a0a0','#c2185b','#6d4c41','#546e7a'];
 const DAYS30=30*864e5;
 function migrate(o){
-  o=o||{};o.tasks=o.tasks||[];
+  o=o||{};o.tasks=o.tasks||[];o.subs=o.subs||['Miei','Giulio','Altri'];
   if((o.v||0)<4){
     const old=o.cats||[];
     o.cats=LIST.map(([n,c])=>{const f=old.find(k=>k.n===n);return{n,c:f?f.c:c}});
@@ -96,7 +103,9 @@ let S=migrate(JSON.parse(localStorage.getItem('db')||'null')||{v:0,upd:0,cats:[]
 localStorage.setItem('db',JSON.stringify(S));
 let CFG=JSON.parse(localStorage.getItem('cfg')||'{}');
 let sha=localStorage.getItem('sha')||null;
-let view='list',filt='',timer=null,drag=null;
+let view='list',filt='',subF='',timer=null,drag=null,ld=null,lastDrag=0;
+const GW=36;let gExtra=0,gScroll=null,gMsg='',gMin=today0();
+function today0(){const x=new Date();return x.getFullYear()+'-'+String(x.getMonth()+1).padStart(2,'0')+'-'+String(x.getDate()).padStart(2,'0')}
 const live=x=>!x.del&&!x.arc;
 const iso=d=>{const x=new Date(d);return x.getFullYear()+'-'+String(x.getMonth()+1).padStart(2,'0')+'-'+String(x.getDate()).padStart(2,'0')};
 const today=()=>iso(new Date());
@@ -161,8 +170,9 @@ function render(){
   ({list:rList,gantt:rGantt,arc:rArc,bin:rBin,set:rSet})[view]();
 }
 function vis(){
-  return S.tasks.filter(x=>live(x)&&(filt==='__done'?x.done:(!x.done&&(!filt||x.cat===filt))));
+  return S.tasks.filter(x=>live(x)&&(filt==='__done'?x.done:(!x.done&&(!filt||x.cat===filt)&&(!(filt==='Lavori'&&subF)||x.sub===subF))));
 }
+const catLabel=x=>esc(x.cat)+(x.cat==='Lavori'&&x.sub?'/'+esc(x.sub):'');
 function rList(){
   const t=today();
   let h='<div class="chips"><button class="chip '+(filt===''?'on':'')+'" data-f="">Tutte</button>';
@@ -172,30 +182,36 @@ function rList(){
   });
   const nd=S.tasks.filter(x=>live(x)&&x.done).length;
   h+=`<button class="chip ${filt==='__done'?'on':''}" style="--c:#2e7d32;--f:#fff" data-f="__done">Fatte <small>${nd||''}</small></button></div>`;
+  if(filt==='Lavori'){
+    const lc=catOf('Lavori');
+    h+=`<div class="chips sub"><button class="chip ${subF===''?'on':''}" style="--c:${lc.c};--f:${fg(lc.c)}" data-sf="">Tutti</button>`+
+      S.subs.map(n=>`<button class="chip ${subF===n?'on':''}" style="--c:${lc.c};--f:${fg(lc.c)}" data-sf="${esc(n)}">${esc(n)}</button>`).join('')+'</div>';
+  }
   const list=vis();
   if(filt==='__done'&&list.length)h+='<div class="bulk"><button class="g" data-bulk="arc">Archivia tutte</button><button class="d" data-bulk="del">Elimina tutte</button></div>';
   if(!list.length)h+=`<div class="empty">${filt==='__done'?'Nessuna attività completata.':'Niente da fare qui.<br>Tocca + per aggiungere una cosa.'}</div>`;
+  h+='<div id="tl">';
   list.forEach(x=>{
-    let d=diff(t,x.due);
+    const d=diff(t,x.due);
     const nowT=new Date().toTimeString().slice(0,5),passed=d===0&&x.tm&&x.tm<nowT;
     const cl=x.done?'':(d<0||passed)?'late':d<=2?'soon':'';
-    const tx=passed?`scaduta alle ${x.tm}`:d<0?`scaduta da ${-d} g`:d===0?(x.tm?`scade oggi alle ${x.tm}`:'scade oggi'):d===1?'scade domani':`tra ${d} giorni`;
-    h+=`<div class="t ${x.done?'done':''}" style="--c:${catOf(x.cat).c}">
+    const tx=passed?`scaduta alle ${x.tm}`:d<0?`scaduta da ${-d} g`:d===0?(x.tm?`oggi alle ${x.tm}`:'oggi'):d===1?'domani':`tra ${d} g`;
+    h+=`<div class="t ${x.done?'done':''}" data-id="${x.id}" style="--c:${catOf(x.cat).c}">
     <input type="checkbox" ${x.done?'checked':''} data-ck="${x.id}">
-    <div class="tb" data-ed="${x.id}"><div class="tt">${esc(x.t)}</div>
-    <div class="mt">${esc(x.cat)} · inserita ${fmt(x.start)} · entro ${fmt(x.due)}${x.tm?' ore '+x.tm:''}</div>
-    ${x.done?'':`<div class="mt dl ${cl}">${tx}</div>`}</div>
-    ${x.done?`<div class="acts"><button data-a="arc" data-id="${x.id}">Archivia</button><button class="k" data-a="del" data-id="${x.id}">Elimina</button></div>`
-    :`<div class="mv"><button data-up="${x.id}">▲</button><button data-dn="${x.id}">▼</button></div>`}</div>`;
+    <div class="tb" data-ed="${x.id}" style="cursor:inherit"><div class="l1"><span class="tt">${esc(x.t)}</span>
+    ${x.done?`<span class="acts"><button data-a="arc" data-id="${x.id}">Archivia</button><button class="k" data-a="del" data-id="${x.id}">Elimina</button></span>`:`<span class="dl ${cl}">${tx}</span>`}</div>
+    <div class="l2">${catLabel(x)} · ${fmt(x.start)} → ${fmt(x.due)}${x.tm?' '+x.tm:''}</div></div></div>`;
   });
+  h+='</div>';
   $('#m').innerHTML=h;
 }
 function rArc(){
   const l=S.tasks.filter(x=>x.arc&&!x.del);
-  let h='<p class="mt">Qui trovi le attività archiviate. Puoi riportarle in lista oppure eliminarle (restano 30 giorni nello Storico).</p>';
+  let h='<p class="mt">Attività archiviate. Puoi riportarle in lista o eliminarle (restano 30 giorni nello Storico).</p>';
   if(!l.length)h+='<div class="empty">Archivio vuoto.</div>';
-  l.forEach(x=>{h+=`<div class="t done" style="--c:${catOf(x.cat).c};opacity:1"><div class="tb"><div class="tt">${esc(x.t)}</div><div class="mt">${esc(x.cat)} · entro ${fmt(x.due)}</div></div>
-  <div class="acts"><button data-a="unarc" data-id="${x.id}">Ripristina</button><button class="k" data-a="del" data-id="${x.id}">Elimina</button></div></div>`});
+  l.forEach(x=>{h+=`<div class="t" style="--c:${catOf(x.cat).c}"><div class="tb" style="min-width:0"><div class="l1"><span class="tt">${esc(x.t)}</span>
+  <span class="acts"><button data-a="unarc" data-id="${x.id}">Ripristina</button><button class="k" data-a="del" data-id="${x.id}">Elimina</button></span></div>
+  <div class="l2">${catLabel(x)} · entro ${fmt(x.due)}</div></div></div>`});
   $('#m').innerHTML=h;
 }
 function rBin(){
@@ -204,9 +220,9 @@ function rBin(){
   if(!l.length)h+='<div class="empty">Storico vuoto.</div>';
   l.forEach(x=>{
     const left=Math.max(0,30-Math.floor((Date.now()-x.del)/864e5));
-    h+=`<div class="t" style="--c:${catOf(x.cat).c}"><div class="tb"><div class="tt">${esc(x.t)}</div>
-    <div class="mt">${esc(x.cat)} · eliminata il ${fmt(iso(x.del))}</div><div class="mt dl ${left<=5?'late':''}">${left} giorni rimasti</div></div>
-    <div class="acts"><button data-a="res" data-id="${x.id}">Ripristina</button><button class="k" data-a="kill" data-id="${x.id}">Per sempre</button></div></div>`});
+    h+=`<div class="t" style="--c:${catOf(x.cat).c}"><div class="tb" style="min-width:0"><div class="l1"><span class="tt">${esc(x.t)}</span>
+    <span class="acts"><button data-a="res" data-id="${x.id}">Ripristina</button><button class="k" data-a="kill" data-id="${x.id}">Per sempre</button></span></div>
+    <div class="l2">${catLabel(x)} · eliminata il ${fmt(iso(x.del))} · <b style="color:${left<=5?'var(--ko)':'inherit'}">${left} giorni rimasti</b></div></div></div>`});
   $('#m').innerHTML=h;
 }
 function rSet(){
@@ -217,6 +233,9 @@ function rSet(){
     <button class="sm" data-cu="${i}">▲</button><button class="sm" data-cd="${i}">▼</button><button class="sm" data-dc="${i}">🗑</button></div>`}).join('');
   h+=`<div class="row" style="align-items:center;margin-top:10px"><input id="nc" placeholder="Nuova categoria" style="flex:4;margin:0"><input id="ncc" type="color" value="${NEWC[S.cats.length%NEWC.length]}" style="flex:1;height:44px;padding:2px;margin:0"></div>
   <button class="p" id="ac" style="width:100%;margin-top:8px">Aggiungi categoria</button>
+  <h2>Nomi in “Lavori”</h2><p class="mt">Compaiono solo quando scegli la categoria Lavori.</p>
+  ${S.subs.map((n,i)=>`<div class="cr"><b>${esc(n)}</b><span class="mt">${S.tasks.filter(x=>!x.del&&x.cat==='Lavori'&&x.sub===n).length}</span><button class="sm" data-ds="${i}">🗑</button></div>`).join('')}
+  <div class="row" style="margin-top:8px"><input id="ns" placeholder="Nuovo nome (es. Marco)" style="flex:3;margin:0"><button class="g" id="as" style="flex:1">Aggiungi</button></div>
   <h2>Sincronizzazione GitHub</h2>
   <label>Repository (utente/nome)</label><input id="s1" value="${esc(CFG.repo||'')}" placeholder="mario/lavori">
   <label>Token GitHub (permesso Contents: read/write)</label><input id="s2" type="password" value="${esc(CFG.token||'')}">
@@ -232,71 +251,95 @@ function rSet(){
 function rGantt(){
   const a=S.tasks.filter(x=>live(x)&&!x.done);
   if(!a.length){$('#m').innerHTML='<div class="empty">Nessuna attività da mostrare.</div>';return}
-  const t=today(),W=36,RH=60,HH=44,TOP=22,BH=28;
-  let min=t,max=t;a.forEach(x=>{if(x.start<min)min=x.start;if(x.due>max)max=x.due});
-  const n=diff(min,max)+8,w=n*W,H=HH+a.length*RH;
+  const t=today(),W=GW,RH=46,HH=44,BH=32,PAD=7;
+  // righe: assegna a chi non ce l'ha e compatta quelle vuote
+  let ch=false,mx=-1;
+  a.forEach(x=>{if(Number.isInteger(x.row))mx=Math.max(mx,x.row)});
+  a.forEach(x=>{if(!Number.isInteger(x.row)){x.row=++mx;ch=true}});
+  const mp=new Map([...new Set(a.map(x=>x.row))].sort((p,q)=>p-q).map((v,i)=>[v,i]));
+  a.forEach(x=>{if(mp.get(x.row)!==x.row){x.row=mp.get(x.row);ch=true}});
+  if(ch){S.upd=Date.now();localStorage.setItem('db',JSON.stringify(S));clearTimeout(timer);timer=setTimeout(push,1500)}
+  const R=mp.size+1; // una riga libera in fondo per crearne una nuova
+  let min=ad(t,-7),max=ad(t,75);
+  a.forEach(x=>{if(ad(x.start,-3)<min)min=ad(x.start,-3);if(ad(x.due,10)>max)max=ad(x.due,10)});
+  gMin=min;
+  const n=diff(min,max)+1+gExtra,w=n*W,H=HH+R*RH;
   const mn=['gen','feb','mar','apr','mag','giu','lug','ago','set','ott','nov','dic'];
+  const lab=(x,bw)=>{const m=Math.floor((bw-46)/6.6);if(m<2)return'';return x.t.length>m?x.t.slice(0,m-1)+'…':x.t};
   let s=`<svg width="${w}" height="${H}" viewBox="0 0 ${w} ${H}">`;
+  for(let r=0;r<R;r++)s+=`<rect x="0" y="${HH+r*RH}" width="${w}" height="${RH}" fill="${r%2?'#8882':'#8881'}" style="pointer-events:none"/>`;
   for(let i=0;i<n;i++){
     const d=dd(min);d.setDate(d.getDate()+i);const x=i*W,we=d.getDay()%6===0;
     if(we)s+=`<rect x="${x}" y="${HH}" width="${W}" height="${H-HH}" fill="#8883" opacity=".25" style="pointer-events:none"/>`;
     s+=`<text x="${x+W/2}" y="${HH-8}" font-size="11" text-anchor="middle">${d.getDate()}</text>`;
-    if(d.getDate()===1||i===0)s+=`<text x="${x+2}" y="14" font-size="11" font-weight="700">${mn[d.getMonth()]}</text>`;
-    s+=`<line x1="${x}" x2="${x}" y1="${HH-4}" y2="${H}" stroke="#8884" stroke-width=".5" style="pointer-events:none"/>`;
+    if(d.getDate()===1||i===0)s+=`<text x="${x+2}" y="14" font-size="11" font-weight="700">${mn[d.getMonth()]} ${d.getFullYear()}</text>`;
+    s+=`<line x1="${x}" x2="${x}" y1="${d.getDate()===1?0:HH-4}" y2="${H}" stroke="#8884" stroke-width="${d.getDate()===1?1.2:.5}" style="pointer-events:none"/>`;
   }
-  a.forEach((x,r)=>{
-    const y=HH+r*RH,x1=diff(min,x.start)*W,bw=(diff(min,x.due)-diff(min,x.start)+1)*W,late=x.due<t;
-    s+=`<text x="${Math.max(4,Math.min(x1+4,w-140))}" y="${y+16}" font-size="12" font-weight="600">${esc(x.t.length>30?x.t.slice(0,29)+'…':x.t)}</text>`;
-    s+=`<g class="bar" data-id="${x.id}"><rect data-m="m" style="touch-action:none" x="${x1}" y="${y+TOP}" width="${bw}" height="${BH}" rx="6" fill="${catOf(x.cat).c}" stroke="${late?'#c0392b':'#8889'}" stroke-width="${late?2:1}"/>
-    <rect data-m="l" style="touch-action:none" x="${x1}" y="${y+TOP}" width="18" height="${BH}" rx="6" fill="#0000004d"/>
-    <rect data-m="r" style="touch-action:none" x="${x1+bw-18}" y="${y+TOP}" width="18" height="${BH}" rx="6" fill="#0000004d"/></g>`;
+  a.forEach(x=>{
+    const y=HH+x.row*RH+PAD,x1=diff(min,x.start)*W,bw=(diff(min,x.due)-diff(min,x.start)+1)*W,late=x.due<t,c=catOf(x.cat).c;
+    s+=`<g class="bar" data-id="${x.id}"><rect data-m="m" style="touch-action:none" x="${x1}" y="${y}" width="${bw}" height="${BH}" rx="6" fill="${c}" stroke="${late?'#c0392b':'#8889'}" stroke-width="${late?2:1}"/>
+    <rect data-m="l" style="touch-action:none" x="${x1}" y="${y}" width="18" height="${BH}" rx="6" fill="#0000004d"/>
+    <rect data-m="r" style="touch-action:none" x="${x1+bw-18}" y="${y}" width="18" height="${BH}" rx="6" fill="#0000004d"/>
+    <text x="${x1+23}" y="${y+BH/2+4}" font-size="12" font-weight="600" style="fill:${fg(c)}">${esc(lab(x,bw))}</text></g>`;
   });
   const tx=diff(min,t)*W+W/2;
   s+=`<line x1="${tx}" x2="${tx}" y1="${HH-4}" y2="${H}" stroke="#c0392b" stroke-width="2" stroke-dasharray="4 3" style="pointer-events:none"/></svg>`;
-  $('#m').innerHTML='<div class="mt" style="margin-bottom:4px">Trascina una barra per spostarla, trascina le estremità scure per accorciarla o allungarla, toccala per modificarla. Linea rossa = oggi.</div><div id="gi"></div><div id="gw">'+s+'</div>';
-  const g=$('#gw');g.scrollLeft=Math.max(0,tx-g.clientWidth/3);
+  $('#m').innerHTML=`<div class="bulk"><button class="g" data-gn="prev">◀ Mese</button><button class="g" data-gn="today">Oggi</button><button class="g" data-gn="next">Mese ▶</button></div>
+  <div class="mt" style="margin-bottom:4px">Trascina una barra per spostarla (anche su un’altra riga), le estremità scure per accorciarla o allungarla, toccala per modificarla. Trascinala sulla riga vuota in fondo per crearne una nuova.</div><div id="gi">${esc(gMsg)}</div><div id="gw">${s}</div>`;
+  gMsg='';
+  const g=$('#gw');
+  g.scrollLeft=gScroll==null?Math.max(0,tx-g.clientWidth/3):gScroll;
+  g.addEventListener('scroll',()=>{gScroll=g.scrollLeft});
   const svg=g.querySelector('svg');
   svg.addEventListener('touchstart',e=>{if(e.target.dataset&&e.target.dataset.m)e.preventDefault()},{passive:false});
   svg.addEventListener('touchmove',e=>{if(drag)e.preventDefault()},{passive:false});
   svg.addEventListener('pointerdown',e=>{
     const m=e.target.dataset.m;if(!m)return;
     const gr=e.target.closest('.bar'),x=S.tasks.find(q=>q.id===gr.dataset.id);
-    drag={x,gr,m,x0:e.clientX,s0:diff(min,x.start),d0:diff(min,x.due),moved:false};
-    drag.s=drag.s0;drag.d=drag.d0;
+    drag={x,gr,m,x0:e.clientX,y0:e.clientY,sc0:g.scrollLeft,s0:diff(min,x.start),d0:diff(min,x.due),r0:x.row,moved:false};
+    drag.s=drag.s0;drag.d=drag.d0;drag.row=drag.r0;
     try{e.target.setPointerCapture(e.pointerId)}catch(_){}
     e.preventDefault();
   });
   svg.addEventListener('pointermove',e=>{
     if(!drag)return;
-    const dx=e.clientX-drag.x0;if(Math.abs(dx)>6)drag.moved=true;if(!drag.moved)return;
-    let k=Math.round(dx/W),{s0,d0,m}=drag,s=s0,d=d0;
-    if(m==='m'){k=Math.max(-s0,Math.min(n-1-d0,k));s=s0+k;d=d0+k}
+    const rc=g.getBoundingClientRect();
+    if(drag.moved){if(e.clientX>rc.right-36)g.scrollLeft+=14;else if(e.clientX<rc.left+36)g.scrollLeft-=14}
+    const dx=e.clientX-drag.x0+(g.scrollLeft-drag.sc0),dy=e.clientY-drag.y0;
+    if(Math.abs(dx)>6||Math.abs(dy)>6)drag.moved=true;if(!drag.moved)return;
+    let k=Math.round(dx/W),{s0,d0,m}=drag,s=s0,d=d0,row=drag.r0;
+    if(m==='m'){k=Math.max(-s0,Math.min(n-1-d0,k));s=s0+k;d=d0+k;row=Math.max(0,Math.min(R-1,drag.r0+Math.round(dy/RH)))}
     else if(m==='l'){s=Math.max(0,Math.min(s0+k,d0))}
     else{d=Math.min(n-1,Math.max(d0+k,s0))}
-    drag.s=s;drag.d=d;
+    drag.s=s;drag.d=d;drag.row=row;
     const rs=drag.gr.querySelectorAll('rect'),bw=(d-s+1)*W;
     rs[0].setAttribute('x',s*W);rs[0].setAttribute('width',bw);
     rs[1].setAttribute('x',s*W);rs[2].setAttribute('x',s*W+bw-18);
+    const tt=drag.gr.querySelector('text');tt.setAttribute('x',s*W+23);tt.textContent=lab(drag.x,bw);
+    drag.gr.setAttribute('transform',`translate(0,${(row-drag.r0)*RH})`);
     $('#gi').textContent=drag.x.t+': '+fmt(ad(min,s))+' → '+fmt(ad(min,d))+' ('+(d-s+1)+' g)';
   });
-  const end=()=>{
+  svg.addEventListener('pointerup',()=>{
     if(!drag)return;const D=drag;drag=null;
     if(!D.moved){edit(D.x.id);return}
-    D.x.start=ad(min,D.s);D.x.due=ad(min,D.d);save();
-  };
-  svg.addEventListener('pointerup',end);
+    const busy=a.some(q=>q!==D.x&&q.row===D.row&&!(diff(min,q.due)<D.s||diff(min,q.start)>D.d));
+    if(busy){gMsg='Posizione occupata: su quella riga c’è già un’attività nello stesso periodo.';render();return}
+    D.x.start=ad(min,D.s);D.x.due=ad(min,D.d);D.x.row=D.row;save();
+  });
   svg.addEventListener('pointercancel',()=>{drag=null;render()});
 }
 
 /* ---------- modale attività ---------- */
+const subOpts=v=>'<option value="">—</option>'+S.subs.map(n=>`<option ${n===v?'selected':''}>${esc(n)}</option>`).join('')+'<option value="__new">➕ Nuovo nome…</option>';
 function edit(id){
-  const x=id?S.tasks.find(t=>t.id===id):{id:'',t:'',cat:(filt&&filt!=='__done'?filt:S.cats[0]?.n),start:today(),due:iso(Date.now()+7*864e5),note:'',tm:''};
+  const x=id?S.tasks.find(t=>t.id===id):{id:'',t:'',cat:(filt&&filt!=='__done'?filt:S.cats[0]?.n),start:today(),due:iso(Date.now()+7*864e5),note:'',tm:'',sub:subF};
   const A=S.tasks.filter(q=>live(q)&&!q.done);
   const pos=id?A.indexOf(x)+1:1,N=A.length+(id&&A.includes(x)?0:1);
   $('#dc').innerHTML=`<label>Cosa devo fare</label><input id="e1" value="${esc(x.t)}">
   <label>Categoria</label><select id="e2">${S.cats.map(c=>`<option ${c.n===x.cat?'selected':''}>${esc(c.n)}</option>`).join('')}</select>
   <div class="row"><div><label>Data inserimento</label><input id="e3" type="date" value="${x.start}"></div>
   <div><label>Entro quando</label><input id="e4" type="date" value="${x.due}"></div></div>
+  <div id="subw" style="display:${x.cat==='Lavori'?'block':'none'}"><label>Di chi è il lavoro</label><select id="e8">${subOpts(x.sub)}</select></div>
   <label>Ora (facoltativa)</label><input id="e7" type="time" value="${x.tm||''}">
   ${x.done?'':`<label>Priorità: posizione <b id="pv">${pos}</b> di ${N} (1 = più urgente)</label>
   <input id="e5" type="range" min="1" max="${N}" value="${pos}" oninput="pv.textContent=this.value">`}
@@ -309,7 +352,7 @@ function edit(id){
     const t=$('#e1').value.trim();if(!t){$('#e1').focus();return}
     let st=$('#e3').value||today(),du=$('#e4').value||st;if(du<st)du=st;
     const o=id?x:{id:'t'+Date.now(),done:false};
-    Object.assign(o,{t,cat:$('#e2').value,start:st,due:du,note:$('#e6').value,tm:$('#e7').value});
+    Object.assign(o,{t,cat:$('#e2').value,start:st,due:du,note:$('#e6').value,tm:$('#e7').value,sub:$('#e2').value==='Lavori'?$('#e8').value:''});
     if(!id)S.tasks.push(o);
     if(!o.done&&$('#e5')){
       const B=S.tasks.filter(q=>q!==o&&live(q)&&!q.done);
@@ -322,34 +365,45 @@ function edit(id){
 }
 
 /* ---------- eventi ---------- */
-function move(id,dir){
-  const v=vis(),i=v.findIndex(x=>x.id===id),j=i+dir;if(i<0||j<0||j>=v.length)return;
-  const a=S.tasks.indexOf(v[i]),b=S.tasks.indexOf(v[j]);
-  [S.tasks[a],S.tasks[b]]=[S.tasks[b],S.tasks[a]];save();
-}
 function moveCat(i,dir){const j=i+dir;if(j<0||j>=S.cats.length)return;[S.cats[i],S.cats[j]]=[S.cats[j],S.cats[i]];save()}
 document.addEventListener('click',e=>{
+  if(Date.now()-lastDrag<400)return;
   const t=e.target,g=a=>t.closest('['+a+']');
   let el;
   if(el=g('data-v')){view=el.dataset.v;render();return}
   if(t.id==='gear'){view='set';render();return}
   if(t.id==='add'){edit();return}
-  if(el=g('data-f')){filt=el.dataset.f;render();return}
-  if(el=g('data-ed')){edit(el.dataset.ed);return}
-  if(el=g('data-up')){move(el.dataset.up,-1);return}
-  if(el=g('data-dn')){move(el.dataset.dn,1);return}
-  if(el=g('data-bulk')){
-    const k=el.dataset.bulk;
-    if(k==='del'&&!confirm('Spostare tutte le attività fatte nello storico?'))return;
-    S.tasks.forEach(x=>{if(live(x)&&x.done){if(k==='arc')x.arc=true;else x.del=Date.now()}});save();return}
+  if(el=g('data-f')){filt=el.dataset.f;subF='';render();return}
+  if(el=g('data-sf')){subF=el.dataset.sf;render();return}
+  if(el=g('data-gn')){
+    const gw=$('#gw'),k=el.dataset.gn;if(!gw)return;
+    if(k==='today'){gw.scrollTo({left:Math.max(0,diff(gMin,today())*GW-gw.clientWidth/3),behavior:'smooth'})}
+    else if(k==='prev'){gw.scrollTo({left:Math.max(0,gw.scrollLeft-30*GW),behavior:'smooth'})}
+    else{const sl=gw.scrollLeft+30*GW;
+      if(sl+gw.clientWidth>gw.scrollWidth-8*GW){gExtra+=60;gScroll=sl;rGantt()}
+      else gw.scrollTo({left:sl,behavior:'smooth'})}
+    return}
+  if(el=g('data-ds')){
+    const i=+el.dataset.ds,n=S.subs[i],c=S.tasks.filter(x=>!x.del&&x.cat==='Lavori'&&x.sub===n).length;
+    if(c){alert(`Non puoi eliminare "${n}": ci sono ${c} lavori assegnati.`);return}
+    if(confirm(`Eliminare il nome "${n}"?`)){S.subs.splice(i,1);if(subF===n)subF='';save()}return}
+  if(t.id==='as'){
+    const n=$('#ns').value.trim();if(!n)return;
+    if(S.subs.some(q=>q.toLowerCase()===n.toLowerCase())){alert('Questo nome esiste già.');return}
+    S.subs.push(n);save();return}
   if(el=g('data-a')){
     const x=S.tasks.find(q=>q.id===el.dataset.id),a=el.dataset.a;if(!x)return;
     if(a==='arc')x.arc=true;
-    else if(a==='unarc'){x.arc=false;x.done=false}
+    else if(a==='unarc'){x.arc=false;x.done=false;delete x.row}
     else if(a==='del')x.del=Date.now();
     else if(a==='res'){x.del=null;if(!S.cats.some(c=>c.n===x.cat))x.cat='Altro'}
     else if(a==='kill'){if(!confirm('Eliminare per sempre "'+x.t+'"? Non si può annullare.'))return;S.tasks=S.tasks.filter(q=>q!==x)}
     save();return}
+  if(el=g('data-ed')){edit(el.dataset.ed);return}
+  if(el=g('data-bulk')){
+    const k=el.dataset.bulk;
+    if(k==='del'&&!confirm('Spostare tutte le attività fatte nello storico?'))return;
+    S.tasks.forEach(x=>{if(live(x)&&x.done){if(k==='arc')x.arc=true;else x.del=Date.now()}});save();return}
   if(el=g('data-cu')){moveCat(+el.dataset.cu,-1);return}
   if(el=g('data-cd')){moveCat(+el.dataset.cd,1);return}
   if(el=g('data-dc')){
@@ -365,11 +419,72 @@ document.addEventListener('click',e=>{
     localStorage.setItem('cfg',JSON.stringify(CFG));sha=null;pull();render();return}
 });
 document.addEventListener('change',e=>{
+  if(e.target.id==='e2'){$('#subw').style.display=e.target.value==='Lavori'?'block':'none';return}
+  if(e.target.id==='e8'){
+    const sel=e.target;
+    if(sel.value==='__new'){
+      const n=(prompt('Nome da aggiungere (es. Marco):')||'').trim();
+      if(n){const ex=S.subs.find(q=>q.toLowerCase()===n.toLowerCase());if(!ex)S.subs.push(n);sel.innerHTML=subOpts(ex||n);localStorage.setItem('db',JSON.stringify(S))}
+      else sel.value='';
+    }
+    return}
   if(e.target.dataset.cc!==undefined){S.cats[+e.target.dataset.cc].c=e.target.value;save();return}
   const id=e.target.dataset.ck;if(!id)return;
-  const x=S.tasks.find(t=>t.id===id);x.done=e.target.checked;save();
+  const x=S.tasks.find(t=>t.id===id);x.done=e.target.checked;if(!x.done)delete x.row;save();
 });
-setInterval(()=>{if(!document.hidden&&!$('#dlg').open&&!drag&&view!=='set')pull()},60000);
+setInterval(()=>{if(!document.hidden&&!$('#dlg').open&&!drag&&!ld&&view!=='set')pull()},60000);
+
+/* ---------- riordino lista con trascinamento (mouse subito, touch con pressione lunga) ---------- */
+document.addEventListener('contextmenu',e=>{if(e.target.closest('.t'))e.preventDefault()});
+document.addEventListener('touchmove',e=>{if(ld&&ld.active)e.preventDefault()},{passive:false});
+document.addEventListener('pointerdown',e=>{
+  if(view!=='list'||filt==='__done')return;
+  if(e.target.closest('input,button,select,textarea,dialog'))return;
+  const card=e.target.closest('#tl .t[data-id]');if(!card)return;
+  if(e.pointerType==='mouse'&&e.button!==0)return;
+  ld={card,id:card.dataset.id,x:e.clientX,y:e.clientY,active:false,touch:e.pointerType!=='mouse',pid:e.pointerId,tgt:null,st0:$('#m').scrollTop};
+  if(ld.touch)ld.timer=setTimeout(()=>{if(ld&&!ld.active)startLd()},380);
+});
+function startLd(){
+  ld.active=true;ld.card.classList.add('drag');
+  ld.cards=[...document.querySelectorAll('#tl .t[data-id]')].filter(c=>c!==ld.card);
+  try{ld.card.setPointerCapture(ld.pid)}catch(_){}
+  if(navigator.vibrate)navigator.vibrate(15);
+}
+document.addEventListener('pointermove',e=>{
+  if(!ld||e.pointerId!==ld.pid)return;
+  const dx=e.clientX-ld.x,dy=e.clientY-ld.y;
+  if(!ld.active){
+    if(Math.abs(dy)>7||Math.abs(dx)>7){if(ld.touch){clearTimeout(ld.timer);ld=null}else startLd()}
+    return;
+  }
+  e.preventDefault();
+  const m=$('#m'),mr=m.getBoundingClientRect();
+  if(e.clientY<mr.top+60)m.scrollTop-=10;else if(e.clientY>mr.bottom-90)m.scrollTop+=10;
+  ld.card.style.transform=`translateY(${dy+(m.scrollTop-ld.st0)}px)`;
+  const cr=ld.card.getBoundingClientRect(),cy=cr.top+cr.height/2;
+  ld.cards.forEach(c=>c.classList.remove('ov','ove'));
+  let tgt=null;
+  for(const c of ld.cards){const r=c.getBoundingClientRect();if(cy<r.top+r.height/2){tgt=c;break}}
+  ld.tgt=tgt;
+  if(tgt)tgt.classList.add('ov');else if(ld.cards.length)ld.cards[ld.cards.length-1].classList.add('ove');
+});
+function endLd(e){
+  if(!ld||e.pointerId!==ld.pid)return;
+  clearTimeout(ld.timer);const L=ld;ld=null;
+  if(!L.active)return;
+  L.card.classList.remove('drag');L.card.style.transform='';
+  L.cards.forEach(c=>c.classList.remove('ov','ove'));
+  lastDrag=Date.now();
+  if(e.type==='pointercancel')return;
+  const v=vis(),ids=v.map(x=>x.id).filter(i=>i!==L.id);
+  ids.splice(L.tgt?ids.indexOf(L.tgt.dataset.id):ids.length,0,L.id);
+  const pos=v.map(x=>S.tasks.indexOf(x)).sort((p,q)=>p-q);
+  ids.forEach((id,i)=>{S.tasks[pos[i]]=v.find(x=>x.id===id)});
+  save();
+}
+document.addEventListener('pointerup',endLd);
+document.addEventListener('pointercancel',endLd);
 document.addEventListener('visibilitychange',()=>{if(!document.hidden)pull()});
 
 if('serviceWorker'in navigator){
