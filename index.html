@@ -56,6 +56,7 @@ dialog::backdrop{background:#0008}
 #gw{overflow:auto;background:var(--card);border:1px solid var(--ln);border-radius:8px}
 #gw svg{user-select:none;-webkit-user-select:none;display:block}
 #gw .bar rect{touch-action:none;cursor:grab}
+#gw svg *{-webkit-touch-callout:none}
 svg text{fill:var(--tx);font-family:inherit;pointer-events:none}
 h2{font-size:1rem;margin:16px 0 8px}
 #gi{min-height:1.4em;font-size:.85rem;margin-bottom:6px;color:var(--mu)}
@@ -75,7 +76,7 @@ h2{font-size:1rem;margin:16px 0 8px}
 
 <script>
 const $=s=>document.querySelector(s);
-const VER='v4';
+const VER='v5';
 const LIST=[['Lavori','#f28c28'],['Ufficio','#5c6bc0'],['Mix','#ab47bc'],['Casa','#8d6e63'],['ADS','#26a69a'],['Mail','#ffffff'],['Chiamate','#43a047'],['Foto','#9e9e9e'],['Scadenze','#fdd835'],['Altro','#78909c']];
 const NEWC=['#2f6fb5','#c0392b','#16a0a0','#c2185b','#6d4c41','#546e7a'];
 const DAYS30=30*864e5;
@@ -246,15 +247,17 @@ function rGantt(){
   a.forEach((x,r)=>{
     const y=HH+r*RH,x1=diff(min,x.start)*W,bw=(diff(min,x.due)-diff(min,x.start)+1)*W,late=x.due<t;
     s+=`<text x="${Math.max(4,Math.min(x1+4,w-140))}" y="${y+16}" font-size="12" font-weight="600">${esc(x.t.length>30?x.t.slice(0,29)+'…':x.t)}</text>`;
-    s+=`<g class="bar" data-id="${x.id}"><rect data-m="m" x="${x1}" y="${y+TOP}" width="${bw}" height="${BH}" rx="6" fill="${catOf(x.cat).c}" stroke="${late?'#c0392b':'#8889'}" stroke-width="${late?2:1}"/>
-    <rect data-m="l" x="${x1}" y="${y+TOP}" width="12" height="${BH}" rx="6" fill="#0000004d"/>
-    <rect data-m="r" x="${x1+bw-12}" y="${y+TOP}" width="12" height="${BH}" rx="6" fill="#0000004d"/></g>`;
+    s+=`<g class="bar" data-id="${x.id}"><rect data-m="m" style="touch-action:none" x="${x1}" y="${y+TOP}" width="${bw}" height="${BH}" rx="6" fill="${catOf(x.cat).c}" stroke="${late?'#c0392b':'#8889'}" stroke-width="${late?2:1}"/>
+    <rect data-m="l" style="touch-action:none" x="${x1}" y="${y+TOP}" width="18" height="${BH}" rx="6" fill="#0000004d"/>
+    <rect data-m="r" style="touch-action:none" x="${x1+bw-18}" y="${y+TOP}" width="18" height="${BH}" rx="6" fill="#0000004d"/></g>`;
   });
   const tx=diff(min,t)*W+W/2;
   s+=`<line x1="${tx}" x2="${tx}" y1="${HH-4}" y2="${H}" stroke="#c0392b" stroke-width="2" stroke-dasharray="4 3" style="pointer-events:none"/></svg>`;
   $('#m').innerHTML='<div class="mt" style="margin-bottom:4px">Trascina una barra per spostarla, trascina le estremità scure per accorciarla o allungarla, toccala per modificarla. Linea rossa = oggi.</div><div id="gi"></div><div id="gw">'+s+'</div>';
   const g=$('#gw');g.scrollLeft=Math.max(0,tx-g.clientWidth/3);
   const svg=g.querySelector('svg');
+  svg.addEventListener('touchstart',e=>{if(e.target.dataset&&e.target.dataset.m)e.preventDefault()},{passive:false});
+  svg.addEventListener('touchmove',e=>{if(drag)e.preventDefault()},{passive:false});
   svg.addEventListener('pointerdown',e=>{
     const m=e.target.dataset.m;if(!m)return;
     const gr=e.target.closest('.bar'),x=S.tasks.find(q=>q.id===gr.dataset.id);
@@ -273,7 +276,7 @@ function rGantt(){
     drag.s=s;drag.d=d;
     const rs=drag.gr.querySelectorAll('rect'),bw=(d-s+1)*W;
     rs[0].setAttribute('x',s*W);rs[0].setAttribute('width',bw);
-    rs[1].setAttribute('x',s*W);rs[2].setAttribute('x',s*W+bw-12);
+    rs[1].setAttribute('x',s*W);rs[2].setAttribute('x',s*W+bw-18);
     $('#gi').textContent=drag.x.t+': '+fmt(ad(min,s))+' → '+fmt(ad(min,d))+' ('+(d-s+1)+' g)';
   });
   const end=()=>{
