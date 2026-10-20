@@ -1,0 +1,34 @@
+{
+ "upd": 0,
+ "cats": [
+  {
+   "n": "Lavori",
+   "c": "#2f6fb5"
+  },
+  {
+   "n": "Fatture",
+   "c": "#c0392b"
+  },
+  {
+   "n": "Mail",
+   "c": "#8e44ad"
+  },
+  {
+   "n": "Chiamate",
+   "c": "#2e8b57"
+  },
+  {
+   "n": "Foto",
+   "c": "#d98a00"
+  },
+  {
+   "n": "Pagamenti",
+   "c": "#16a0a0"
+  },
+  {
+   "n": "Scadenze",
+   "c": "#c2185b"
+  }
+ ],
+ "tasks": []
+}
