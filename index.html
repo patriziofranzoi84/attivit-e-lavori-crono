@@ -83,7 +83,7 @@ h2{font-size:1rem;margin:16px 0 8px}
 
 <script>
 const $=s=>document.querySelector(s);
-const VER='v6';
+const VER='v7';
 const LIST=[['Lavori','#f28c28'],['Ufficio','#5c6bc0'],['Mix','#ab47bc'],['Casa','#8d6e63'],['ADS','#26a69a'],['Mail','#ffffff'],['Chiamate','#43a047'],['Foto','#9e9e9e'],['Scadenze','#fdd835'],['Altro','#78909c']];
 const NEWC=['#2f6fb5','#c0392b','#16a0a0','#c2185b','#6d4c41','#546e7a'];
 const DAYS30=30*864e5;
@@ -103,6 +103,7 @@ let S=migrate(JSON.parse(localStorage.getItem('db')||'null')||{v:0,upd:0,cats:[]
 localStorage.setItem('db',JSON.stringify(S));
 let CFG=JSON.parse(localStorage.getItem('cfg')||'{}');
 let sha=localStorage.getItem('sha')||null;
+let gFilt='',gSub='',gSpare=0;
 let view='list',filt='',subF='',timer=null,drag=null,ld=null,lastDrag=0;
 const GW=36;let gExtra=0,gScroll=null,gMsg='',gMin=today0();
 function today0(){const x=new Date();return x.getFullYear()+'-'+String(x.getMonth()+1).padStart(2,'0')+'-'+String(x.getDate()).padStart(2,'0')}
@@ -248,20 +249,35 @@ function rSet(){
 }
 
 /* ---------- cronoprogramma con trascinamento ---------- */
+function ganChips(){
+  let h='<div class="chips"><button class="chip '+(gFilt===''?'on':'')+'" data-gf="">Tutte</button>';
+  S.cats.forEach(c=>{h+=`<button class="chip ${gFilt===c.n?'on':''}" style="--c:${c.c};--f:${fg(c.c)}" data-gf="${esc(c.n)}">${esc(c.n)}</button>`});
+  h+='</div>';
+  if(gFilt==='Lavori'){
+    const lc=catOf('Lavori');
+    h+=`<div class="chips sub"><button class="chip ${gSub===''?'on':''}" style="--c:${lc.c};--f:${fg(lc.c)}" data-gsf="">Tutti</button>`+
+      S.subs.map(n=>`<button class="chip ${gSub===n?'on':''}" style="--c:${lc.c};--f:${fg(lc.c)}" data-gsf="${esc(n)}">${esc(n)}</button>`).join('')+'</div>';
+  }
+  return h;
+}
 function rGantt(){
-  const a=S.tasks.filter(x=>live(x)&&!x.done);
-  if(!a.length){$('#m').innerHTML='<div class="empty">Nessuna attività da mostrare.</div>';return}
+  const all=S.tasks.filter(x=>live(x)&&!x.done);
+  if(!all.length){$('#m').innerHTML='<div class="empty">Nessuna attività da mostrare.</div>';return}
+  const a=all.filter(x=>(!gFilt||x.cat===gFilt)&&(!(gFilt==='Lavori'&&gSub)||x.sub===gSub));
   const t=today(),W=GW,RH=46,HH=44,BH=32,PAD=7;
-  // righe: assegna a chi non ce l'ha e compatta quelle vuote
+  // righe: assegna a chi non ce l'ha e compatta quelle vuote (su tutte le attività)
   let ch=false,mx=-1;
-  a.forEach(x=>{if(Number.isInteger(x.row))mx=Math.max(mx,x.row)});
-  a.forEach(x=>{if(!Number.isInteger(x.row)){x.row=++mx;ch=true}});
-  const mp=new Map([...new Set(a.map(x=>x.row))].sort((p,q)=>p-q).map((v,i)=>[v,i]));
-  a.forEach(x=>{if(mp.get(x.row)!==x.row){x.row=mp.get(x.row);ch=true}});
+  all.forEach(x=>{if(Number.isInteger(x.row))mx=Math.max(mx,x.row)});
+  all.forEach(x=>{if(!Number.isInteger(x.row)){x.row=++mx;ch=true}});
+  const mp=new Map([...new Set(all.map(x=>x.row))].sort((p,q)=>p-q).map((v,i)=>[v,i]));
+  all.forEach(x=>{if(mp.get(x.row)!==x.row){x.row=mp.get(x.row);ch=true}});
   if(ch){S.upd=Date.now();localStorage.setItem('db',JSON.stringify(S));clearTimeout(timer);timer=setTimeout(push,1500)}
-  const R=mp.size+1; // una riga libera in fondo per crearne una nuova
+  // righe mostrate: solo quelle con attività visibili, più righe libere in fondo
+  const disp=[...new Set(a.map(x=>x.row))].sort((p,q)=>p-q);
+  const R=disp.length+1+gSpare;
+  const toActual=k=>k<disp.length?disp[k]:mp.size+(k-disp.length);
   let min=ad(t,-7),max=ad(t,75);
-  a.forEach(x=>{if(ad(x.start,-3)<min)min=ad(x.start,-3);if(ad(x.due,10)>max)max=ad(x.due,10)});
+  all.forEach(x=>{if(ad(x.start,-3)<min)min=ad(x.start,-3);if(ad(x.due,10)>max)max=ad(x.due,10)});
   gMin=min;
   const n=diff(min,max)+1+gExtra,w=n*W,H=HH+R*RH;
   const mn=['gen','feb','mar','apr','mag','giu','lug','ago','set','ott','nov','dic'];
@@ -276,7 +292,7 @@ function rGantt(){
     s+=`<line x1="${x}" x2="${x}" y1="${d.getDate()===1?0:HH-4}" y2="${H}" stroke="#8884" stroke-width="${d.getDate()===1?1.2:.5}" style="pointer-events:none"/>`;
   }
   a.forEach(x=>{
-    const y=HH+x.row*RH+PAD,x1=diff(min,x.start)*W,bw=(diff(min,x.due)-diff(min,x.start)+1)*W,late=x.due<t,c=catOf(x.cat).c;
+    const y=HH+disp.indexOf(x.row)*RH+PAD,x1=diff(min,x.start)*W,bw=(diff(min,x.due)-diff(min,x.start)+1)*W,late=x.due<t,c=catOf(x.cat).c;
     s+=`<g class="bar" data-id="${x.id}"><rect data-m="m" style="touch-action:none" x="${x1}" y="${y}" width="${bw}" height="${BH}" rx="6" fill="${c}" stroke="${late?'#c0392b':'#8889'}" stroke-width="${late?2:1}"/>
     <rect data-m="l" style="touch-action:none" x="${x1}" y="${y}" width="18" height="${BH}" rx="6" fill="#0000004d"/>
     <rect data-m="r" style="touch-action:none" x="${x1+bw-18}" y="${y}" width="18" height="${BH}" rx="6" fill="#0000004d"/>
@@ -284,8 +300,8 @@ function rGantt(){
   });
   const tx=diff(min,t)*W+W/2;
   s+=`<line x1="${tx}" x2="${tx}" y1="${HH-4}" y2="${H}" stroke="#c0392b" stroke-width="2" stroke-dasharray="4 3" style="pointer-events:none"/></svg>`;
-  $('#m').innerHTML=`<div class="bulk"><button class="g" data-gn="prev">◀ Mese</button><button class="g" data-gn="today">Oggi</button><button class="g" data-gn="next">Mese ▶</button></div>
-  <div class="mt" style="margin-bottom:4px">Trascina una barra per spostarla (anche su un’altra riga), le estremità scure per accorciarla o allungarla, toccala per modificarla. Trascinala sulla riga vuota in fondo per crearne una nuova.</div><div id="gi">${esc(gMsg)}</div><div id="gw">${s}</div>`;
+  $('#m').innerHTML=ganChips()+`<div class="bulk"><button class="g" data-gn="prev">◀ Mese</button><button class="g" data-gn="today">Oggi</button><button class="g" data-gn="next">Mese ▶</button><button class="g" data-gr="1">+ Riga</button></div>
+  <div class="mt" style="margin-bottom:4px">Trascina una barra per spostarla (anche su un’altra riga), le estremità scure per accorciarla o allungarla, toccala per modificarla. Con “+ Riga” aggiungi righe vuote in fondo dove trascinare le attività.</div><div id="gi">${esc(gMsg)}</div>${a.length?'':'<div class="empty">Nessuna attività in questa categoria.</div>'}<div id="gw">${s}</div>`;
   gMsg='';
   const g=$('#gw');
   g.scrollLeft=gScroll==null?Math.max(0,tx-g.clientWidth/3):gScroll;
@@ -296,16 +312,19 @@ function rGantt(){
   svg.addEventListener('pointerdown',e=>{
     const m=e.target.dataset.m;if(!m)return;
     const gr=e.target.closest('.bar'),x=S.tasks.find(q=>q.id===gr.dataset.id);
-    drag={x,gr,m,x0:e.clientX,y0:e.clientY,sc0:g.scrollLeft,s0:diff(min,x.start),d0:diff(min,x.due),r0:x.row,moved:false};
+    drag={x,gr,m,x0:e.clientX,y0:e.clientY,sc0:g.scrollLeft,st0:$('#m').scrollTop,s0:diff(min,x.start),d0:diff(min,x.due),r0:disp.indexOf(x.row),moved:false};
     drag.s=drag.s0;drag.d=drag.d0;drag.row=drag.r0;
     try{e.target.setPointerCapture(e.pointerId)}catch(_){}
     e.preventDefault();
   });
   svg.addEventListener('pointermove',e=>{
     if(!drag)return;
-    const rc=g.getBoundingClientRect();
-    if(drag.moved){if(e.clientX>rc.right-36)g.scrollLeft+=14;else if(e.clientX<rc.left+36)g.scrollLeft-=14}
-    const dx=e.clientX-drag.x0+(g.scrollLeft-drag.sc0),dy=e.clientY-drag.y0;
+    const rc=g.getBoundingClientRect(),mm=$('#m');
+    if(drag.moved){
+      if(e.clientX>rc.right-36)g.scrollLeft+=14;else if(e.clientX<rc.left+36)g.scrollLeft-=14;
+      if(e.clientY>innerHeight-110)mm.scrollTop+=12;else if(e.clientY<90)mm.scrollTop-=12;
+    }
+    const dx=e.clientX-drag.x0+(g.scrollLeft-drag.sc0),dy=e.clientY-drag.y0+(mm.scrollTop-drag.st0);
     if(Math.abs(dx)>6||Math.abs(dy)>6)drag.moved=true;if(!drag.moved)return;
     let k=Math.round(dx/W),{s0,d0,m}=drag,s=s0,d=d0,row=drag.r0;
     if(m==='m'){k=Math.max(-s0,Math.min(n-1-d0,k));s=s0+k;d=d0+k;row=Math.max(0,Math.min(R-1,drag.r0+Math.round(dy/RH)))}
@@ -322,9 +341,10 @@ function rGantt(){
   svg.addEventListener('pointerup',()=>{
     if(!drag)return;const D=drag;drag=null;
     if(!D.moved){edit(D.x.id);return}
-    const busy=a.some(q=>q!==D.x&&q.row===D.row&&!(diff(min,q.due)<D.s||diff(min,q.start)>D.d));
+    const row=toActual(D.row);
+    const busy=all.some(q=>q!==D.x&&q.row===row&&!(diff(min,q.due)<D.s||diff(min,q.start)>D.d));
     if(busy){gMsg='Posizione occupata: su quella riga c’è già un’attività nello stesso periodo.';render();return}
-    D.x.start=ad(min,D.s);D.x.due=ad(min,D.d);D.x.row=D.row;save();
+    D.x.start=ad(min,D.s);D.x.due=ad(min,D.d);D.x.row=row;gSpare=0;save();
   });
   svg.addEventListener('pointercancel',()=>{drag=null;render()});
 }
@@ -332,7 +352,8 @@ function rGantt(){
 /* ---------- modale attività ---------- */
 const subOpts=v=>'<option value="">—</option>'+S.subs.map(n=>`<option ${n===v?'selected':''}>${esc(n)}</option>`).join('')+'<option value="__new">➕ Nuovo nome…</option>';
 function edit(id){
-  const x=id?S.tasks.find(t=>t.id===id):{id:'',t:'',cat:(filt&&filt!=='__done'?filt:S.cats[0]?.n),start:today(),due:iso(Date.now()+7*864e5),note:'',tm:'',sub:subF};
+  const fc=view==='gantt'?gFilt:filt,fs=view==='gantt'?gSub:subF;
+  const x=id?S.tasks.find(t=>t.id===id):{id:'',t:'',cat:(fc&&fc!=='__done'?fc:S.cats[0]?.n),start:today(),due:iso(Date.now()+7*864e5),note:'',tm:'',sub:fs};
   const A=S.tasks.filter(q=>live(q)&&!q.done);
   const pos=id?A.indexOf(x)+1:1,N=A.length+(id&&A.includes(x)?0:1);
   $('#dc').innerHTML=`<label>Cosa devo fare</label><input id="e1" value="${esc(x.t)}">
@@ -375,6 +396,9 @@ document.addEventListener('click',e=>{
   if(t.id==='add'){edit();return}
   if(el=g('data-f')){filt=el.dataset.f;subF='';render();return}
   if(el=g('data-sf')){subF=el.dataset.sf;render();return}
+  if(el=g('data-gf')){gFilt=el.dataset.gf;gSub='';render();return}
+  if(el=g('data-gsf')){gSub=el.dataset.gsf;render();return}
+  if(g('data-gr')){gSpare=Math.min(gSpare+1,12);render();return}
   if(el=g('data-gn')){
     const gw=$('#gw'),k=el.dataset.gn;if(!gw)return;
     if(k==='today'){gw.scrollTo({left:Math.max(0,diff(gMin,today())*GW-gw.clientWidth/3),behavior:'smooth'})}
