@@ -188,7 +188,8 @@ function rSet(){
   <div class="row"><div><label>Branch</label><input id="s3" value="${esc(CFG.branch||'main')}"></div>
   <div><label>File</label><input id="s4" value="${esc(CFG.path||'data.json')}"></div></div>
   <div class="row"><button class="p" id="sv">Salva e sincronizza</button></div>
-  <p class="mt" style="margin-top:14px">Stato: ${ok()?'collegato':'non collegato'}</p>`;
+  <p class="mt" style="margin-top:14px">Stato: ${ok()?'collegato':'non collegato'} · versione app ${VER}</p>
+  <button class="d" style="width:100%;margin-top:6px" onclick="forceUpdate()">Forza aggiornamento app</button>`;
 }
 
 /* ---------- modale attività ---------- */
@@ -250,7 +251,17 @@ document.addEventListener('change',e=>{
 setInterval(()=>{if(!document.hidden&&!$('#dlg').open&&!timer_pending())pull()},60000);
 const timer_pending=()=>false;
 document.addEventListener('visibilitychange',()=>{if(!document.hidden)pull()});
-if('serviceWorker'in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
+const VER='v3';
+if('serviceWorker'in navigator){
+  const had=!!navigator.serviceWorker.controller;
+  navigator.serviceWorker.addEventListener('controllerchange',()=>{if(had)location.reload()});
+  navigator.serviceWorker.register('sw.js?'+VER,{updateViaCache:'none'}).then(r=>r.update()).catch(()=>{});
+}
+async function forceUpdate(){
+  try{const k=await caches.keys();await Promise.all(k.map(x=>caches.delete(x)));
+  const rg=await navigator.serviceWorker.getRegistrations();await Promise.all(rg.map(x=>x.unregister()))}catch(e){}
+  location.href=location.pathname+'?r='+Date.now();
+}
 render();pull();
 </script>
 </body>
