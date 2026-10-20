@@ -1,5 +1,5 @@
 {
- "upd": 1792531866934,
+ "upd": 1792531991983,
  "cats": [
   {
    "n": "Lavori",
@@ -42,6 +42,71 @@
    "c": "#78909c"
   }
  ],
- "tasks": [],
+ "tasks": [
+  {
+   "id": "t1792531315294",
+   "done": false,
+   "t": "potvca ora",
+   "cat": "Lavori",
+   "start": "2026-10-20",
+   "due": "2026-10-27",
+   "note": "",
+   "tm": "01:23"
+  },
+  {
+   "id": "t1792530997524",
+   "done": false,
+   "t": "Prova 33",
+   "cat": "Lavori",
+   "start": "2026-10-21",
+   "due": "2026-10-27",
+   "note": "Hshsh"
+  },
+  {
+   "id": "t1792530829816",
+   "done": false,
+   "t": "Rft",
+   "cat": "Chiamate",
+   "start": "2026-10-20",
+   "due": "2026-10-27",
+   "note": ""
+  },
+  {
+   "id": "t1792530733774",
+   "done": false,
+   "t": "Hrhri4",
+   "cat": "Mail",
+   "start": "2026-10-20",
+   "due": "2026-10-27",
+   "note": ""
+  },
+  {
+   "id": "t1792530217551",
+   "done": true,
+   "t": "wdsa",
+   "cat": "Lavori",
+   "start": "2026-10-20",
+   "due": "2026-10-27",
+   "note": ""
+  },
+  {
+   "id": "t1792530348150",
+   "done": true,
+   "t": "dsadgjhfhjhg",
+   "cat": "Lavori",
+   "start": "2026-10-22",
+   "due": "2026-10-27",
+   "note": ""
+  },
+  {
+   "id": "t1792530387024",
+   "done": true,
+   "t": "Hhehe",
+   "cat": "Lavori",
+   "start": "2026-11-12",
+   "due": "2026-11-12",
+   "note": ""
+  }
+ ],
  "v": 4
 }
