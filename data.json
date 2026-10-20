@@ -1,5 +1,5 @@
 {
- "upd": 1792531842750,
+ "upd": 1792531848638,
  "cats": [
   {
    "n": "Lavori",
@@ -45,7 +45,7 @@
  "tasks": [
   {
    "id": "t1792531315294",
-   "done": false,
+   "done": true,
    "t": "potvca ora",
    "cat": "Lavori",
    "start": "2026-10-22",
@@ -55,7 +55,7 @@
   },
   {
    "id": "t1792530997524",
-   "done": false,
+   "done": true,
    "t": "Prova 33",
    "cat": "Lavori",
    "start": "2026-10-23",
@@ -64,7 +64,7 @@
   },
   {
    "id": "t1792530829816",
-   "done": false,
+   "done": true,
    "t": "Rft",
    "cat": "Chiamate",
    "start": "2026-10-23",
@@ -73,7 +73,7 @@
   },
   {
    "id": "t1792530733774",
-   "done": false,
+   "done": true,
    "t": "Hrhri4",
    "cat": "Mail",
    "start": "2026-10-21",
