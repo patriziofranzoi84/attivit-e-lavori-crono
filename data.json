@@ -1,6 +1,6 @@
 {
  "v": 4,
- "upd": 1792565592765,
+ "upd": 1792565595211,
  "cats": [
   {
    "n": "Lavori",
@@ -61,7 +61,7 @@
    "done": false,
    "t": "ioòioò",
    "cat": "Scadenze",
-   "start": "2026-10-25",
+   "start": "2026-10-24",
    "due": "2026-11-01",
    "note": "",
    "tm": "",
@@ -181,8 +181,8 @@
    "done": false,
    "t": "Visite oculistiche",
    "cat": "ADS",
-   "start": "2026-10-21",
-   "due": "2026-10-22",
+   "start": "2026-10-20",
+   "due": "2026-10-21",
    "note": "",
    "tm": "",
    "sub": "",
