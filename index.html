@@ -92,7 +92,7 @@ dialog{max-height:92vh;overflow:auto}
 
 <script>
 const $=s=>document.querySelector(s);
-const VER='v8';
+const VER='v10';
 const LIST=[['Lavori','#f28c28'],['Ufficio','#5c6bc0'],['Mix','#ab47bc'],['Casa','#8d6e63'],['ADS','#26a69a'],['Mail','#ffffff'],['Chiamate','#43a047'],['Foto','#9e9e9e'],['Scadenze','#fdd835'],['Altro','#78909c']];
 const NEWC=['#2f6fb5','#c0392b','#16a0a0','#c2185b','#6d4c41','#546e7a'];
 const DAYS30=30*864e5;
@@ -115,7 +115,8 @@ let sha=localStorage.getItem('sha')||null;
 let gFilt='',gSub='',gSpare=0;
 let view='list',filt='',subF='',timer=null,drag=null,ld=null,lastDrag=0;
 let gExtra=0,gScroll=null,gMsg='',gMin=today0();
-let gZ=+(localStorage.getItem('gz')||36),gHours=localStorage.getItem('gh')==='1',gSel=new Set();
+let gZ=36,gDays=+(localStorage.getItem('gd')||3),gHours=localStorage.getItem('gh')==='1',gSel=new Set();
+const zFor=d=>Math.max(8,Math.floor(((($('#gb')&&$('#gb').clientWidth)||360)-32)/d));
 const PRN=['Nessuna','Bassa','Media','Alta','Urgente'],PRC=['#000000','#2e7d32','#f57c00','#1565c0','#d32f2f'];
 function today0(){const x=new Date();return x.getFullYear()+'-'+String(x.getMonth()+1).padStart(2,'0')+'-'+String(x.getDate()).padStart(2,'0')}
 const live=x=>!x.del&&!x.arc;
@@ -276,12 +277,12 @@ function ganChips(){
 function rGantt(){
   const all=S.tasks.filter(x=>live(x)&&!x.done);
   if(!all.length){$('#m').innerHTML='<div class="empty">Nessuna attività da mostrare.</div>';return}
-  const leg=PRN.map((n,i)=>`<span style="white-space:nowrap"><i style="display:inline-block;width:11px;height:11px;border:2px solid ${PRC[i]};border-radius:3px;vertical-align:-2px"></i> ${n}</span>`).join(' &nbsp;');
-  $('#m').innerHTML=ganChips()+`<div class="bulk s"><button class="g" data-gn="prev">◀ Mese</button><button class="g" data-gn="today">Oggi</button><button class="g" data-gn="next">Mese ▶</button>
+  $('#m').innerHTML=ganChips()+`<div class="bulk s"><button class="g" data-gn="prev" aria-label="Indietro">◀</button><button class="g" data-gn="today">Oggi</button><button class="g" data-gn="next" aria-label="Avanti">▶</button>
   <button class="g" data-gr="+" aria-label="Aggiungi riga">＋</button><button class="g" data-gr="-" aria-label="Togli riga">－</button><button class="g" data-gsort="1">Ordina</button></div>
   <div class="bulk" style="align-items:center;gap:12px"><label style="white-space:nowrap;flex:none;color:var(--tx)"><input type="checkbox" id="gh" ${gHours?'checked':''} style="width:auto;margin:0 6px 0 0;vertical-align:-3px">Scala ore</label>
-  <label class="mt" style="flex:1;display:flex;align-items:center;gap:6px;min-width:150px">Zoom <input type="range" id="gz" min="24" max="288" value="${gZ}" style="margin:0"></label></div>
-  <div class="mt" style="margin:4px 0">Trascina una barra per spostarla (anche su un’altra riga), le estremità scure per accorciarla o allungarla, toccala per modificarla. Tocca i numeri a sinistra per selezionare delle righe, poi ＋ aggiunge una riga sotto e － toglie le righe vuote. Contorno: ${leg}. Linea tratteggiata rossa = adesso.</div><div id="gi">${esc(gMsg)}</div><div id="gb"></div>`;
+  <label class="mt" style="flex:1;display:flex;align-items:center;gap:8px;min-width:120px">Vista <select id="gd" style="margin:0;padding:7px">${[1,3,5,7,10,14,20,30,45,60].map(v=>`<option value="${v}" ${v===gDays?'selected':''}>${v} ${v===1?'giorno':'giorni'}</option>`).join('')}</select></label>
+  <button class="g" data-help="1" aria-label="Come si usa" style="flex:none;padding:4px 12px;font-size:1.25rem">💡</button></div>
+  <div id="gi">${esc(gMsg)}</div><div id="gb"></div>`;
   gMsg='';
   drawG();
 }
@@ -289,6 +290,7 @@ function drawG(){
   const box=$('#gb');if(!box)return;
   const all=S.tasks.filter(x=>live(x)&&!x.done);
   const a=all.filter(x=>(!gFilt||x.cat===gFilt)&&(!(gFilt==='Lavori'&&gSub)||x.sub===gSub));
+  gZ=zFor(gDays);
   const t=today(),Z=gZ,RH=46,BH=32,PAD=7,H0=44+(gHours?20:0);
   let ch=false,mx0=-1;
   all.forEach(x=>{if(Number.isInteger(x.row))mx0=Math.max(mx0,x.row)});
@@ -301,7 +303,7 @@ function drawG(){
   all.forEach(x=>{if(ad(x.start,-3)<min)min=ad(x.start,-3);if(ad(x.due,10)>max)max=ad(x.due,10)});
   gMin=min;
   const n=diff(min,max)+1+gExtra,w=n*Z,H=H0+R*RH;
-  const px=m=>m*Z/1440,step=Z<80?1440:Z<160?60:30;
+  const px=m=>m*Z/1440,step=[5,15,30,60,180,360,1440].find(v=>v*Z/1440>=3)||1440;
   const tmin=v=>{const p=v.split(':');return (+p[0])*60+(+p[1])};
   const hh=m=>String(Math.floor(m/60)).padStart(2,'0')+':'+String(m%60).padStart(2,'0');
   const smOf=q=>diff(min,q.start)*1440+(q.ts?tmin(q.ts):0);
@@ -324,7 +326,8 @@ function drawG(){
   for(let i=0;i<n;i++){
     const d=dd(min);d.setDate(d.getDate()+i);const x=i*Z,we=d.getDay()%6===0;
     if(we)s+=`<rect x="${x}" y="44" width="${Z}" height="${H-44}" fill="#8883" opacity=".25" style="pointer-events:none"/>`;
-    s+=`<text x="${x+Z/2}" y="36" font-size="11" text-anchor="middle">${d.getDate()}</text>`;
+    const ls=Z>=24?1:Z>=12?2:Z>=7?5:10;
+    if(d.getDate()%ls===0||ls===1)s+=`<text x="${x+Z/2}" y="36" font-size="11" text-anchor="middle">${d.getDate()}</text>`;
     if(d.getDate()===1||i===0)s+=`<text x="${x+2}" y="14" font-size="11" font-weight="700">${mn[d.getMonth()]} ${d.getFullYear()}</text>`;
     s+=`<line x1="${x}" x2="${x}" y1="${d.getDate()===1?0:40}" y2="${H}" stroke="#8884" stroke-width="${d.getDate()===1?1.2:.5}" style="pointer-events:none"/>`;
     if(gHours){
@@ -338,7 +341,7 @@ function drawG(){
   }
   const geo={};let bars='';
   a.forEach(x=>{
-    const sm=smOf(x),em=emOf(x),bw=Math.max(px(em-sm),36),hw=Math.min(18,bw/3),x1=px(sm);
+    const sm=smOf(x),em=emOf(x),bw=Math.max(px(em-sm),24),hw=Math.min(18,bw/3),x1=px(sm);
     const y=H0+disp.indexOf(x.row)*RH+PAD,c=catOf(x.cat).c;
     geo[x.id]={x1,x2:x1+bw,y:y+BH/2};
     bars+=`<g class="bar" data-id="${x.id}"><rect data-m="m" style="touch-action:none" x="${x1}" y="${y}" width="${bw}" height="${BH}" rx="6" fill="${c}" stroke="${PRC[x.pr||0]}" stroke-width="2.5"/>
@@ -363,7 +366,7 @@ function drawG(){
     Array.from({length:1+gSpare},()=>`<div style="height:${RH}px;border-bottom:1px solid var(--ln);border-right:1px solid var(--ln);background:var(--card)"></div>`).join('');
   box.innerHTML=`${a.length?'':'<div class="empty">Nessuna attività in questa categoria.</div>'}<div id="gwrap"><div id="gl">${labs}</div><div id="gw">${s}</div></div>`;
   const g=$('#gw');
-  g.scrollLeft=gScroll==null?Math.max(0,tx-g.clientWidth/3):gScroll;
+  g.scrollLeft=gScroll==null?Math.max(0,diff(min,t)*Z):gScroll;
   g.addEventListener('scroll',()=>{gScroll=g.scrollLeft});
   const svg=g.querySelector('svg');
   svg.addEventListener('touchstart',e=>{if(e.target.dataset&&e.target.dataset.m)e.preventDefault()},{passive:false});
@@ -391,7 +394,7 @@ function drawG(){
     else if(m==='l'){s=Math.max(0,Math.min(s0+dm,e0-step))}
     else{en=Math.min(n*1440,Math.max(e0+dm,s0+step))}
     drag.s=s;drag.e=en;drag.row=row;
-    const rs=drag.gr.querySelectorAll('rect'),bw=Math.max(px(en-s),36),hw=Math.min(18,bw/3),x1=px(s);
+    const rs=drag.gr.querySelectorAll('rect'),bw=Math.max(px(en-s),24),hw=Math.min(18,bw/3),x1=px(s);
     rs[0].setAttribute('x',x1);rs[0].setAttribute('width',bw);
     rs[1].setAttribute('x',x1);rs[1].setAttribute('width',hw);
     rs[2].setAttribute('x',x1+bw-hw);rs[2].setAttribute('width',hw);
@@ -431,19 +434,24 @@ function sortRows(mode){
 }
 /* ---------- modale attività ---------- */
 const subOpts=v=>'<option value="">—</option>'+S.subs.map(n=>`<option ${n===v?'selected':''}>${esc(n)}</option>`).join('')+'<option value="__new">➕ Nuovo nome…</option>';
-const nowHM=()=>new Date().toTimeString().slice(0,5);
+const DURS=[[10,"10'"],[15,"15'"],[20,"20'"],[30,"30'"],[60,'1 h'],[90,"1 h 30'"],[120,'2 h'],[180,'3 h'],[240,'4 h'],[300,'5 h'],[360,'6 h'],[480,'8 h'],[600,'10 h'],[720,'12 h']];
+const mk=(d,t)=>{const a=d.split('-').map(Number),b=(t||'00:00').split(':').map(Number);return new Date(a[0],a[1]-1,a[2],b[0],b[1])};
+const spanMin=x=>{const st=mk(x.start,x.ts||'00:00'),en=x.tm?mk(x.due,x.tm):new Date(mk(x.due,'00:00').getTime()+864e5);return Math.round((en-st)/6e4)};
+const nowHM=()=>{const d=new Date(),m=Math.min(1435,Math.round((d.getHours()*60+d.getMinutes())/5)*5);return String(Math.floor(m/60)).padStart(2,'0')+':'+String(m%60).padStart(2,'0')};
 const plusHour=()=>{const d=new Date(Date.now()+36e5);return d.getDate()!==new Date().getDate()?'23:59':d.toTimeString().slice(0,5)};
 const depOpts=(sel,self)=>'<option value="">—</option>'+S.tasks.filter(q=>live(q)&&!q.done&&q.id!==self).map(q=>`<option value="${q.id}" ${q.id===sel?'selected':''}>${esc(q.t.length>32?q.t.slice(0,31)+'…':q.t)}</option>`).join('');
 function edit(id){
   const fc=view==='gantt'?gFilt:filt,fs=view==='gantt'?gSub:subF;
-  const x=id?S.tasks.find(t=>t.id===id):{id:'',t:'',cat:(fc&&fc!=='__done'?fc:S.cats[0]?.n),start:today(),due:today(),ts:nowHM(),tm:plusHour(),pr:0,af:'',bf:'',note:'',sub:fs};
+  const x=id?S.tasks.find(t=>t.id===id):{id:'',t:'',cat:(fc&&fc!=='__done'?fc:S.cats[0]?.n),start:today(),due:today(),ts:nowHM(),tm:'',pr:0,af:'',bf:'',note:'',sub:fs};
+  const dur0=id?spanMin(x):60;
   $('#dc').innerHTML=`<label>Cosa devo fare</label><input id="e1" value="${esc(x.t)}">
   <label>Categoria</label><select id="e2">${S.cats.map(c=>`<option ${c.n===x.cat?'selected':''}>${esc(c.n)}</option>`).join('')}</select>
   <div id="subw" style="display:${x.cat==='Lavori'?'block':'none'}"><label>Di chi è il lavoro</label><select id="e8">${subOpts(x.sub)}</select></div>
   <div class="row"><div><label>Data inizio</label><input id="e3" type="date" value="${x.start}"></div>
-  <div><label>Data fine</label><input id="e4" type="date" value="${x.due}"></div></div>
-  <div class="row"><div><label>Ora inizio</label><input id="e7s" type="time" value="${x.ts||''}"></div>
-  <div><label>Ora fine</label><input id="e7" type="time" value="${x.tm||''}"></div></div>
+  <div><label>Ora inizio</label><input id="e7s" type="time" step="300" value="${x.ts||''}"></div></div>
+  <label>Durata (calcola la fine in automatico)</label><select id="e0"><option value="">Personalizzata</option>${DURS.map(([v,l])=>`<option value="${v}" ${v===dur0?'selected':''}>${l}</option>`).join('')}</select>
+  <div class="row"><div><label>Data fine</label><input id="e4" type="date" value="${x.due}"></div>
+  <div><label>Ora fine</label><input id="e7" type="time" step="300" value="${x.tm||''}"></div></div>
   <label>Priorità</label><select id="e9">${PRN.map((n,i)=>`<option value="${i}" ${(x.pr||0)===i?'selected':''}>${n}</option>`).join('')}</select>
   <div class="row"><div><label>Da fare dopo di…</label><select id="ea">${depOpts(x.af,id)}</select></div>
   <div><label>Da fare prima di…</label><select id="eb">${depOpts(x.bf,id)}</select></div></div>
@@ -451,6 +459,20 @@ function edit(id){
   <div class="row"><button class="p" id="es">Salva</button><button id="ex" class="g">Annulla</button></div>
   ${id?'<button class="d" id="edl" style="width:100%;margin-top:10px">Sposta nello storico</button>':''}`;
   $('#dlg').showModal();
+  const calcEnd=()=>{
+    const dur=+$('#e0').value;if(!dur)return;
+    const e=new Date(mk($('#e3').value||today(),$('#e7s').value||'00:00').getTime()+dur*6e4),hm=e.toTimeString().slice(0,5);
+    if(hm==='00:00'){$('#e4').value=iso(new Date(e.getTime()-864e5));$('#e7').value=''}
+    else{$('#e4').value=iso(e);$('#e7').value=hm}
+  };
+  const calcDur=()=>{
+    const st=$('#e3').value||today(),du=$('#e4').value||st;
+    const m=spanMin({start:st,ts:$('#e7s').value,due:du,tm:$('#e7').value});
+    $('#e0').value=DURS.some(([v])=>v===m)?String(m):'';
+  };
+  ['e3','e7s','e0'].forEach(i=>{$('#'+i).addEventListener('change',calcEnd);$('#'+i).addEventListener('input',calcEnd)});
+  ['e4','e7'].forEach(i=>$('#'+i).addEventListener('change',calcDur));
+  if(!id)calcEnd();
   $('#ex').onclick=()=>$('#dlg').close();
   $('#es').onclick=()=>{
     const t=$('#e1').value.trim();if(!t){$('#e1').focus();return}
@@ -478,12 +500,29 @@ document.addEventListener('click',e=>{
   if(el=g('data-gsf')){gSub=el.dataset.gsf;render();return}
   if(el=g('data-gn')){
     const gw=$('#gw'),k=el.dataset.gn;if(!gw)return;
-    if(k==='today'){gw.scrollTo({left:Math.max(0,diff(gMin,today())*gZ-gw.clientWidth/3),behavior:'smooth'})}
-    else if(k==='prev'){gw.scrollTo({left:Math.max(0,gw.scrollLeft-30*gZ),behavior:'smooth'})}
-    else{const sl=gw.scrollLeft+30*gZ;
-      if(sl+gw.clientWidth>gw.scrollWidth-8*gZ){gExtra+=60;gScroll=sl;drawG()}
+    if(k==='today'){gw.scrollTo({left:Math.max(0,diff(gMin,today())*gZ),behavior:'smooth'})}
+    else if(k==='prev'){gw.scrollTo({left:Math.max(0,gw.scrollLeft-gw.clientWidth*0.9),behavior:'smooth'})}
+    else{const sl=gw.scrollLeft+gw.clientWidth*0.9;
+      if(sl+gw.clientWidth>gw.scrollWidth-gDays*gZ){gExtra+=60;gScroll=sl;drawG()}
       else gw.scrollTo({left:sl,behavior:'smooth'})}
     return}
+  if(g('data-help')){
+    const leg=PRN.map((n,i)=>`<span style="white-space:nowrap"><i style="display:inline-block;width:11px;height:11px;border:2px solid ${PRC[i]};border-radius:3px;vertical-align:-2px"></i> ${n}</span>`).join(' &nbsp; ');
+    $('#dc').innerHTML=`<p style="margin-top:0"><b>💡 Come si usa il cronoprogramma</b></p>
+    <ul style="padding-left:18px;margin:0 0 10px;font-size:.92rem;line-height:1.5">
+    <li><b>Spostare:</b> trascina una barra a destra o a sinistra. Trascinandola in su o in giù la cambi di riga.</li>
+    <li><b>Durata:</b> trascina le estremità scure per accorciarla o allungarla.</li>
+    <li><b>Modificare:</b> tocca la barra senza trascinare.</li>
+    <li><b>Stessa riga:</b> se la metti sopra un’altra, si accoda subito dopo e quella dopo scorre a destra.</li>
+    <li><b>Righe:</b> tocca i numeri a sinistra per selezionarle. ＋ aggiunge una riga sotto quelle selezionate, － toglie quelle vuote. Senza selezione agiscono sull’ultima riga.</li>
+    <li><b>Vista:</b> scegli da 1 a 60 giorni da vedere sullo schermo. “Scala ore” mostra le ore sotto le date.</li>
+    <li><b>Scorrere:</b> ◀ e ▶ spostano di una schermata, Oggi torna a oggi.</li>
+    <li><b>Ordina:</b> mette le righe in ordine per data o per priorità.</li>
+    <li><b>Frecce:</b> collegano le attività con “prima di” e “dopo di”.</li>
+    <li><b>Linea rossa tratteggiata:</b> adesso.</li></ul>
+    <p class="mt" style="margin:0 0 12px">Contorno della barra: ${leg}</p>
+    <button class="p" id="ex" style="width:100%">Ho capito</button>`;
+    $('#dlg').showModal();$('#ex').onclick=()=>$('#dlg').close();return}
   if(el=g('data-rs')){const r=+el.dataset.rs;if(gSel.has(r))gSel.delete(r);else gSel.add(r);drawG();return}
   if(el=g('data-gsort')){
     $('#dc').innerHTML=`<p style="margin-top:0"><b>Ordina il cronoprogramma</b><br><span class="mt">Dall’alto in basso. Le attività sulla stessa riga restano insieme e le righe vuote vengono tolte.</span></p>
@@ -552,14 +591,11 @@ document.addEventListener('click',e=>{
     CFG={repo:$('#s1').value.trim(),token:$('#s2').value.trim(),branch:$('#s3').value.trim()||'main',path:$('#s4').value.trim()||'data.json'};
     localStorage.setItem('cfg',JSON.stringify(CFG));sha=null;pull();render();return}
 });
-document.addEventListener('input',e=>{
-  if(e.target.id!=='gz')return;
-  const gw=$('#gw'),c=gw?(gw.scrollLeft+gw.clientWidth/2)/gZ:0;
-  gZ=+e.target.value;localStorage.setItem('gz',gZ);
-  if(gw)gScroll=Math.max(0,c*gZ-gw.clientWidth/2);
-  drawG();
-});
 document.addEventListener('change',e=>{
+  if(e.target.id==='gd'){
+    const gw=$('#gw'),left=gw?gw.scrollLeft/gZ:0;
+    gDays=+e.target.value;localStorage.setItem('gd',gDays);
+    gZ=zFor(gDays);gScroll=left*gZ;drawG();return}
   if(e.target.id==='gh'){gHours=e.target.checked;localStorage.setItem('gh',gHours?'1':'0');drawG();return}
   if(e.target.id==='e2'){$('#subw').style.display=e.target.value==='Lavori'?'block':'none';return}
   if(e.target.id==='e8'){
@@ -628,6 +664,11 @@ function endLd(e){
 document.addEventListener('pointerup',endLd);
 document.addEventListener('pointercancel',endLd);
 document.addEventListener('visibilitychange',()=>{if(!document.hidden)pull()});
+window.addEventListener('resize',()=>{
+  if(view!=='gantt'||drag||!$('#gw'))return;
+  const nz=zFor(gDays);if(nz===gZ)return;
+  const left=$('#gw').scrollLeft/gZ;gZ=nz;gScroll=left*gZ;drawG();
+});
 
 if('serviceWorker'in navigator){
   const had=!!navigator.serviceWorker.controller;
