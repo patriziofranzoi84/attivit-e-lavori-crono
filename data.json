@@ -1,6 +1,6 @@
 {
  "v": 4,
- "upd": 1792610728113,
+ "upd": 1792610803624,
  "cats": [
   {
    "n": "Lavori",
@@ -274,6 +274,21 @@
    "ts": "22:00",
    "tm": "22:30",
    "pr": 4,
+   "af": "",
+   "bf": "",
+   "sub": ""
+  },
+  {
+   "id": "t1792610803624",
+   "done": false,
+   "t": "12 ottobre accompagnato papà visita oculistica Vicenza",
+   "cat": "Mix",
+   "start": "2026-10-21",
+   "due": "2026-10-21",
+   "note": "inserire su rimborso",
+   "ts": "21:25",
+   "tm": "22:25",
+   "pr": 0,
    "af": "",
    "bf": "",
    "sub": ""
