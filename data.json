@@ -1,6 +1,6 @@
 {
  "v": 4,
- "upd": 1792586957669,
+ "upd": 1792586963254,
  "cats": [
   {
    "n": "Lavori",
@@ -46,7 +46,7 @@
  "tasks": [
   {
    "id": "t1792583395157",
-   "done": false,
+   "done": true,
    "t": "Tff",
    "cat": "Ufficio",
    "start": "2026-10-21",
