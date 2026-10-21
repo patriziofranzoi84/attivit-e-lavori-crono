@@ -66,7 +66,16 @@ dialog::backdrop{background:#0008}
 #gw svg *{-webkit-touch-callout:none}
 svg text{fill:var(--tx);font-family:inherit;pointer-events:none}
 h2{font-size:1rem;margin:16px 0 8px}
-#gi{min-height:1.4em;font-size:.85rem;margin-bottom:6px;color:var(--mu)}
+#gi{min-height:1.2em;font-size:.85rem;margin-bottom:4px;color:var(--mu)}
+#gwrap{display:flex;align-items:flex-start}
+#gl{flex:none;width:32px}
+.rl{display:block;width:32px;padding:0;margin:0;border:0;border-bottom:1px solid var(--ln);border-right:1px solid var(--ln);background:var(--card);color:var(--mu);font-size:.72rem}
+.rl.sel{background:var(--ac);color:var(--bg);font-weight:700}
+#gw{flex:1;min-width:0}
+.bulk{flex-wrap:wrap}
+.bulk.s button{padding:8px 4px;font-size:.88rem;min-width:0}
+.l3{font-size:.8rem;margin-top:2px;white-space:pre-wrap;overflow-wrap:anywhere}
+dialog{max-height:92vh;overflow:auto}
 </style>
 </head>
 <body>
@@ -83,7 +92,7 @@ h2{font-size:1rem;margin:16px 0 8px}
 
 <script>
 const $=s=>document.querySelector(s);
-const VER='v7';
+const VER='v8';
 const LIST=[['Lavori','#f28c28'],['Ufficio','#5c6bc0'],['Mix','#ab47bc'],['Casa','#8d6e63'],['ADS','#26a69a'],['Mail','#ffffff'],['Chiamate','#43a047'],['Foto','#9e9e9e'],['Scadenze','#fdd835'],['Altro','#78909c']];
 const NEWC=['#2f6fb5','#c0392b','#16a0a0','#c2185b','#6d4c41','#546e7a'];
 const DAYS30=30*864e5;
@@ -105,7 +114,9 @@ let CFG=JSON.parse(localStorage.getItem('cfg')||'{}');
 let sha=localStorage.getItem('sha')||null;
 let gFilt='',gSub='',gSpare=0;
 let view='list',filt='',subF='',timer=null,drag=null,ld=null,lastDrag=0;
-const GW=36;let gExtra=0,gScroll=null,gMsg='',gMin=today0();
+let gExtra=0,gScroll=null,gMsg='',gMin=today0();
+let gZ=+(localStorage.getItem('gz')||36),gHours=localStorage.getItem('gh')==='1',gSel=new Set();
+const PRN=['Nessuna','Bassa','Media','Alta','Urgente'],PRC=['#000000','#2e7d32','#f57c00','#1565c0','#d32f2f'];
 function today0(){const x=new Date();return x.getFullYear()+'-'+String(x.getMonth()+1).padStart(2,'0')+'-'+String(x.getDate()).padStart(2,'0')}
 const live=x=>!x.del&&!x.arc;
 const iso=d=>{const x=new Date(d);return x.getFullYear()+'-'+String(x.getMonth()+1).padStart(2,'0')+'-'+String(x.getDate()).padStart(2,'0')};
@@ -173,6 +184,7 @@ function render(){
 function vis(){
   return S.tasks.filter(x=>live(x)&&(filt==='__done'?x.done:(!x.done&&(!filt||x.cat===filt)&&(!(filt==='Lavori'&&subF)||x.sub===subF))));
 }
+const whenTxt=x=>x.start===x.due?`${fmt(x.start)}${x.ts?' '+x.ts:''}${x.tm?'–'+x.tm:''}`:`${fmt(x.start)}${x.ts?' '+x.ts:''} → ${fmt(x.due)}${x.tm?' '+x.tm:''}`;
 const catLabel=x=>esc(x.cat)+(x.cat==='Lavori'&&x.sub?'/'+esc(x.sub):'');
 function rList(){
   const t=today();
@@ -201,7 +213,8 @@ function rList(){
     <input type="checkbox" ${x.done?'checked':''} data-ck="${x.id}">
     <div class="tb" data-ed="${x.id}" style="cursor:inherit"><div class="l1"><span class="tt">${esc(x.t)}</span>
     ${x.done?`<span class="acts"><button data-a="arc" data-id="${x.id}">Archivia</button><button class="k" data-a="del" data-id="${x.id}">Elimina</button></span>`:`<span class="dl ${cl}">${tx}</span>`}</div>
-    <div class="l2">${catLabel(x)} · ${fmt(x.start)} → ${fmt(x.due)}${x.tm?' '+x.tm:''}</div></div></div>`;
+    <div class="l2">${catLabel(x)} · ${whenTxt(x)}${x.pr?` · <b style="color:${PRC[x.pr]}">${PRN[x.pr]}</b>`:''}</div>
+    ${x.note?`<div class="l3">${esc(x.note)}</div>`:''}</div></div>`;
   });
   h+='</div>';
   $('#m').innerHTML=h;
@@ -209,7 +222,7 @@ function rList(){
 function rArc(){
   const l=S.tasks.filter(x=>x.arc&&!x.del);
   let h='<p class="mt">Attività archiviate. Puoi riportarle in lista o eliminarle (restano 30 giorni nello Storico).</p>';
-  if(!l.length)h+='<div class="empty">Archivio vuoto.</div>';
+  if(!l.length)h+='<div class="empty">Archivio vuoto.</div>';else h+='<button class="d" data-purge="arc" style="width:100%;margin-bottom:10px">Elimina tutto per sempre</button>';
   l.forEach(x=>{h+=`<div class="t" style="--c:${catOf(x.cat).c}"><div class="tb" style="min-width:0"><div class="l1"><span class="tt">${esc(x.t)}</span>
   <span class="acts"><button data-a="unarc" data-id="${x.id}">Ripristina</button><button class="k" data-a="del" data-id="${x.id}">Elimina</button></span></div>
   <div class="l2">${catLabel(x)} · entro ${fmt(x.due)}</div></div></div>`});
@@ -218,7 +231,7 @@ function rArc(){
 function rBin(){
   const l=S.tasks.filter(x=>x.del).sort((a,b)=>b.del-a.del);
   let h='<p class="mt">Le attività eliminate restano qui 30 giorni, poi spariscono per sempre.</p>';
-  if(!l.length)h+='<div class="empty">Storico vuoto.</div>';
+  if(!l.length)h+='<div class="empty">Storico vuoto.</div>';else h+='<button class="d" data-purge="bin" style="width:100%;margin-bottom:10px">Elimina tutto per sempre</button>';
   l.forEach(x=>{
     const left=Math.max(0,30-Math.floor((Date.now()-x.del)/864e5));
     h+=`<div class="t" style="--c:${catOf(x.cat).c}"><div class="tb" style="min-width:0"><div class="l1"><span class="tt">${esc(x.t)}</span>
@@ -263,46 +276,92 @@ function ganChips(){
 function rGantt(){
   const all=S.tasks.filter(x=>live(x)&&!x.done);
   if(!all.length){$('#m').innerHTML='<div class="empty">Nessuna attività da mostrare.</div>';return}
+  const leg=PRN.map((n,i)=>`<span style="white-space:nowrap"><i style="display:inline-block;width:11px;height:11px;border:2px solid ${PRC[i]};border-radius:3px;vertical-align:-2px"></i> ${n}</span>`).join(' &nbsp;');
+  $('#m').innerHTML=ganChips()+`<div class="bulk s"><button class="g" data-gn="prev">◀ Mese</button><button class="g" data-gn="today">Oggi</button><button class="g" data-gn="next">Mese ▶</button>
+  <button class="g" data-gr="+" aria-label="Aggiungi riga">＋</button><button class="g" data-gr="-" aria-label="Togli riga">－</button><button class="g" data-gsort="1">Ordina</button></div>
+  <div class="bulk" style="align-items:center;gap:12px"><label style="white-space:nowrap;flex:none;color:var(--tx)"><input type="checkbox" id="gh" ${gHours?'checked':''} style="width:auto;margin:0 6px 0 0;vertical-align:-3px">Scala ore</label>
+  <label class="mt" style="flex:1;display:flex;align-items:center;gap:6px;min-width:150px">Zoom <input type="range" id="gz" min="24" max="288" value="${gZ}" style="margin:0"></label></div>
+  <div class="mt" style="margin:4px 0">Trascina una barra per spostarla (anche su un’altra riga), le estremità scure per accorciarla o allungarla, toccala per modificarla. Tocca i numeri a sinistra per selezionare delle righe, poi ＋ aggiunge una riga sotto e － toglie le righe vuote. Contorno: ${leg}. Linea tratteggiata rossa = adesso.</div><div id="gi">${esc(gMsg)}</div><div id="gb"></div>`;
+  gMsg='';
+  drawG();
+}
+function drawG(){
+  const box=$('#gb');if(!box)return;
+  const all=S.tasks.filter(x=>live(x)&&!x.done);
   const a=all.filter(x=>(!gFilt||x.cat===gFilt)&&(!(gFilt==='Lavori'&&gSub)||x.sub===gSub));
-  const t=today(),W=GW,RH=46,HH=44,BH=32,PAD=7;
-  // righe: assegna a chi non ce l'ha e compatta quelle vuote (su tutte le attività)
-  let ch=false,mx=-1;
-  all.forEach(x=>{if(Number.isInteger(x.row))mx=Math.max(mx,x.row)});
-  all.forEach(x=>{if(!Number.isInteger(x.row)){x.row=++mx;ch=true}});
-  const mp=new Map([...new Set(all.map(x=>x.row))].sort((p,q)=>p-q).map((v,i)=>[v,i]));
-  all.forEach(x=>{if(mp.get(x.row)!==x.row){x.row=mp.get(x.row);ch=true}});
+  const t=today(),Z=gZ,RH=46,BH=32,PAD=7,H0=44+(gHours?20:0);
+  let ch=false,mx0=-1;
+  all.forEach(x=>{if(Number.isInteger(x.row))mx0=Math.max(mx0,x.row)});
+  all.forEach(x=>{if(!Number.isInteger(x.row)){x.row=++mx0;ch=true}});
   if(ch){S.upd=Date.now();localStorage.setItem('db',JSON.stringify(S));clearTimeout(timer);timer=setTimeout(push,1500)}
-  // righe mostrate: solo quelle con attività visibili, più righe libere in fondo
-  const disp=[...new Set(a.map(x=>x.row))].sort((p,q)=>p-q);
+  const disp=gFilt?[...new Set(a.map(x=>x.row))].sort((p,q)=>p-q):Array.from({length:mx0+1},(_,i)=>i);
   const R=disp.length+1+gSpare;
-  const toActual=k=>k<disp.length?disp[k]:mp.size+(k-disp.length);
+  const toActual=k=>k<disp.length?disp[k]:mx0+1+(k-disp.length);
   let min=ad(t,-7),max=ad(t,75);
   all.forEach(x=>{if(ad(x.start,-3)<min)min=ad(x.start,-3);if(ad(x.due,10)>max)max=ad(x.due,10)});
   gMin=min;
-  const n=diff(min,max)+1+gExtra,w=n*W,H=HH+R*RH;
+  const n=diff(min,max)+1+gExtra,w=n*Z,H=H0+R*RH;
+  const px=m=>m*Z/1440,step=Z<80?1440:Z<160?60:30;
+  const tmin=v=>{const p=v.split(':');return (+p[0])*60+(+p[1])};
+  const hh=m=>String(Math.floor(m/60)).padStart(2,'0')+':'+String(m%60).padStart(2,'0');
+  const smOf=q=>diff(min,q.start)*1440+(q.ts?tmin(q.ts):0);
+  const emOf=q=>{const s=smOf(q),e=diff(min,q.due)*1440+(q.tm?tmin(q.tm):1440);return e<=s?s+60:e};
+  const setSpan=(q,s,e)=>{
+    const ds=Math.floor(s/1440),ms=s-ds*1440;q.start=ad(min,ds);q.ts=ms?hh(ms):(q.ts?'00:00':'');
+    if(e%1440===0){q.due=ad(min,e/1440-1);q.tm=''}else{const de=Math.floor(e/1440);q.due=ad(min,de);q.tm=hh(e-de*1440)}
+  };
+  const dtStr=m=>fmt(ad(min,Math.floor(m/1440)))+' '+hh(m%1440);
+  const durStr=m=>m>=1440?(Math.round(m/144)/10)+' g':(Math.round(m/6)/10)+' h';
   const mn=['gen','feb','mar','apr','mag','giu','lug','ago','set','ott','nov','dic'];
-  const lab=(x,bw)=>{const m=Math.floor((bw-46)/6.6);if(m<2)return'';return x.t.length>m?x.t.slice(0,m-1)+'…':x.t};
+  const lab=(x,bw,hw)=>{const m=Math.floor((bw-2*hw-8)/6.6);if(m<2)return'';return x.t.length>m?x.t.slice(0,m-1)+'…':x.t};
+  const nd=new Date(),nowM=nd.getHours()*60+nd.getMinutes();
   let s=`<svg width="${w}" height="${H}" viewBox="0 0 ${w} ${H}">`;
-  for(let r=0;r<R;r++)s+=`<rect x="0" y="${HH+r*RH}" width="${w}" height="${RH}" fill="${r%2?'#8882':'#8881'}" style="pointer-events:none"/>`;
-  for(let i=0;i<n;i++){
-    const d=dd(min);d.setDate(d.getDate()+i);const x=i*W,we=d.getDay()%6===0;
-    if(we)s+=`<rect x="${x}" y="${HH}" width="${W}" height="${H-HH}" fill="#8883" opacity=".25" style="pointer-events:none"/>`;
-    s+=`<text x="${x+W/2}" y="${HH-8}" font-size="11" text-anchor="middle">${d.getDate()}</text>`;
-    if(d.getDate()===1||i===0)s+=`<text x="${x+2}" y="14" font-size="11" font-weight="700">${mn[d.getMonth()]} ${d.getFullYear()}</text>`;
-    s+=`<line x1="${x}" x2="${x}" y1="${d.getDate()===1?0:HH-4}" y2="${H}" stroke="#8884" stroke-width="${d.getDate()===1?1.2:.5}" style="pointer-events:none"/>`;
+  for(let r=0;r<R;r++){
+    const sel=r<disp.length&&gSel.has(disp[r]);
+    s+=`<rect x="0" y="${H0+r*RH}" width="${w}" height="${RH}" fill="${sel?'#2f6fb5':(r%2?'#888888':'#888888')}" fill-opacity="${sel?.22:(r%2?.13:.06)}" style="pointer-events:none"/>`;
   }
+  const hs=[1,2,3,6,12].find(v=>Z/24*v>=22)||0;
+  for(let i=0;i<n;i++){
+    const d=dd(min);d.setDate(d.getDate()+i);const x=i*Z,we=d.getDay()%6===0;
+    if(we)s+=`<rect x="${x}" y="44" width="${Z}" height="${H-44}" fill="#8883" opacity=".25" style="pointer-events:none"/>`;
+    s+=`<text x="${x+Z/2}" y="36" font-size="11" text-anchor="middle">${d.getDate()}</text>`;
+    if(d.getDate()===1||i===0)s+=`<text x="${x+2}" y="14" font-size="11" font-weight="700">${mn[d.getMonth()]} ${d.getFullYear()}</text>`;
+    s+=`<line x1="${x}" x2="${x}" y1="${d.getDate()===1?0:40}" y2="${H}" stroke="#8884" stroke-width="${d.getDate()===1?1.2:.5}" style="pointer-events:none"/>`;
+    if(gHours){
+      const hstep=hs||6;
+      for(let h=0;h<24;h+=hstep){
+        const hx=x+Z*h/24;
+        s+=`<line x1="${hx}" x2="${hx}" y1="46" y2="${H0}" stroke="#8886" stroke-width=".6" style="pointer-events:none"/>`;
+        if(hs&&h>0||hs&&h===0&&Z>=60)s+=`<text x="${hx+2}" y="${H0-6}" font-size="9" style="opacity:.75">${h}</text>`;
+      }
+    }
+  }
+  const geo={};let bars='';
   a.forEach(x=>{
-    const y=HH+disp.indexOf(x.row)*RH+PAD,x1=diff(min,x.start)*W,bw=(diff(min,x.due)-diff(min,x.start)+1)*W,late=x.due<t,c=catOf(x.cat).c;
-    s+=`<g class="bar" data-id="${x.id}"><rect data-m="m" style="touch-action:none" x="${x1}" y="${y}" width="${bw}" height="${BH}" rx="6" fill="${c}" stroke="${late?'#c0392b':'#8889'}" stroke-width="${late?2:1}"/>
-    <rect data-m="l" style="touch-action:none" x="${x1}" y="${y}" width="18" height="${BH}" rx="6" fill="#0000004d"/>
-    <rect data-m="r" style="touch-action:none" x="${x1+bw-18}" y="${y}" width="18" height="${BH}" rx="6" fill="#0000004d"/>
-    <text x="${x1+23}" y="${y+BH/2+4}" font-size="12" font-weight="600" style="fill:${fg(c)}">${esc(lab(x,bw))}</text></g>`;
+    const sm=smOf(x),em=emOf(x),bw=Math.max(px(em-sm),36),hw=Math.min(18,bw/3),x1=px(sm);
+    const y=H0+disp.indexOf(x.row)*RH+PAD,c=catOf(x.cat).c;
+    geo[x.id]={x1,x2:x1+bw,y:y+BH/2};
+    bars+=`<g class="bar" data-id="${x.id}"><rect data-m="m" style="touch-action:none" x="${x1}" y="${y}" width="${bw}" height="${BH}" rx="6" fill="${c}" stroke="${PRC[x.pr||0]}" stroke-width="2.5"/>
+    <rect data-m="l" style="touch-action:none" x="${x1}" y="${y}" width="${hw}" height="${BH}" rx="6" fill="#0000004d"/>
+    <rect data-m="r" style="touch-action:none" x="${x1+bw-hw}" y="${y}" width="${hw}" height="${BH}" rx="6" fill="#0000004d"/>
+    <text x="${x1+hw+5}" y="${y+BH/2+4}" font-size="12" font-weight="600" style="fill:${fg(c)}">${esc(lab(x,bw,hw))}</text></g>`;
   });
-  const tx=diff(min,t)*W+W/2;
-  s+=`<line x1="${tx}" x2="${tx}" y1="${HH-4}" y2="${H}" stroke="#c0392b" stroke-width="2" stroke-dasharray="4 3" style="pointer-events:none"/></svg>`;
-  $('#m').innerHTML=ganChips()+`<div class="bulk"><button class="g" data-gn="prev">◀ Mese</button><button class="g" data-gn="today">Oggi</button><button class="g" data-gn="next">Mese ▶</button><button class="g" data-gr="1">+ Riga</button></div>
-  <div class="mt" style="margin-bottom:4px">Trascina una barra per spostarla (anche su un’altra riga), le estremità scure per accorciarla o allungarla, toccala per modificarla. Con “+ Riga” aggiungi righe vuote in fondo dove trascinare le attività.</div><div id="gi">${esc(gMsg)}</div>${a.length?'':'<div class="empty">Nessuna attività in questa categoria.</div>'}<div id="gw">${s}</div>`;
-  gMsg='';
+  s+=bars;
+  // collegamenti prima di / dopo di
+  const done=new Set();let lk='';
+  const link=(p,q)=>{
+    const k=p+'>'+q;if(done.has(k)||!geo[p]||!geo[q])return;done.add(k);
+    const A=geo[p],B=geo[q];
+    lk+=`<path d="M${A.x2} ${A.y} C${A.x2+40} ${A.y},${B.x1-40} ${B.y},${B.x1} ${B.y}" fill="none" stroke-width="2" marker-end="url(#ar)" style="stroke:var(--tx);opacity:.8;pointer-events:none"/>`;
+  };
+  a.forEach(x=>{if(x.af)link(x.af,x.id);if(x.bf)link(x.id,x.bf)});
+  s+=`<defs><marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" style="fill:var(--tx)"/></marker></defs>`+lk;
+  const tx=px(diff(min,t)*1440+nowM);
+  s+=`<line x1="${tx}" x2="${tx}" y1="40" y2="${H}" stroke="#c0392b" stroke-width="2" stroke-dasharray="4 3" style="pointer-events:none"/></svg>`;
+  const labs=`<div style="height:${H0}px;border-bottom:1px solid var(--ln)"></div>`+
+    disp.map(r=>`<button class="rl ${gSel.has(r)?'sel':''}" data-rs="${r}" style="height:${RH}px">${r+1}</button>`).join('')+
+    Array.from({length:1+gSpare},()=>`<div style="height:${RH}px;border-bottom:1px solid var(--ln);border-right:1px solid var(--ln);background:var(--card)"></div>`).join('');
+  box.innerHTML=`${a.length?'':'<div class="empty">Nessuna attività in questa categoria.</div>'}<div id="gwrap"><div id="gl">${labs}</div><div id="gw">${s}</div></div>`;
   const g=$('#gw');
   g.scrollLeft=gScroll==null?Math.max(0,tx-g.clientWidth/3):gScroll;
   g.addEventListener('scroll',()=>{gScroll=g.scrollLeft});
@@ -312,8 +371,8 @@ function rGantt(){
   svg.addEventListener('pointerdown',e=>{
     const m=e.target.dataset.m;if(!m)return;
     const gr=e.target.closest('.bar'),x=S.tasks.find(q=>q.id===gr.dataset.id);
-    drag={x,gr,m,x0:e.clientX,y0:e.clientY,sc0:g.scrollLeft,st0:$('#m').scrollTop,s0:diff(min,x.start),d0:diff(min,x.due),r0:disp.indexOf(x.row),moved:false};
-    drag.s=drag.s0;drag.d=drag.d0;drag.row=drag.r0;
+    drag={x,gr,m,x0:e.clientX,y0:e.clientY,sc0:g.scrollLeft,st0:$('#m').scrollTop,s0:smOf(x),e0:emOf(x),r0:disp.indexOf(x.row),moved:false};
+    drag.s=drag.s0;drag.e=drag.e0;drag.row=drag.r0;
     try{e.target.setPointerCapture(e.pointerId)}catch(_){}
     e.preventDefault();
   });
@@ -326,44 +385,68 @@ function rGantt(){
     }
     const dx=e.clientX-drag.x0+(g.scrollLeft-drag.sc0),dy=e.clientY-drag.y0+(mm.scrollTop-drag.st0);
     if(Math.abs(dx)>6||Math.abs(dy)>6)drag.moved=true;if(!drag.moved)return;
-    let k=Math.round(dx/W),{s0,d0,m}=drag,s=s0,d=d0,row=drag.r0;
-    if(m==='m'){k=Math.max(-s0,Math.min(n-1-d0,k));s=s0+k;d=d0+k;row=Math.max(0,Math.min(R-1,drag.r0+Math.round(dy/RH)))}
-    else if(m==='l'){s=Math.max(0,Math.min(s0+k,d0))}
-    else{d=Math.min(n-1,Math.max(d0+k,s0))}
-    drag.s=s;drag.d=d;drag.row=row;
-    const rs=drag.gr.querySelectorAll('rect'),bw=(d-s+1)*W;
-    rs[0].setAttribute('x',s*W);rs[0].setAttribute('width',bw);
-    rs[1].setAttribute('x',s*W);rs[2].setAttribute('x',s*W+bw-18);
-    const tt=drag.gr.querySelector('text');tt.setAttribute('x',s*W+23);tt.textContent=lab(drag.x,bw);
+    const dm=Math.round(dx*1440/Z/step)*step,{s0,e0,m}=drag;
+    let s=s0,en=e0,row=drag.r0;
+    if(m==='m'){const k=Math.max(-s0,Math.min(n*1440-e0,dm));s=s0+k;en=e0+k;row=Math.max(0,Math.min(R-1,drag.r0+Math.round(dy/RH)))}
+    else if(m==='l'){s=Math.max(0,Math.min(s0+dm,e0-step))}
+    else{en=Math.min(n*1440,Math.max(e0+dm,s0+step))}
+    drag.s=s;drag.e=en;drag.row=row;
+    const rs=drag.gr.querySelectorAll('rect'),bw=Math.max(px(en-s),36),hw=Math.min(18,bw/3),x1=px(s);
+    rs[0].setAttribute('x',x1);rs[0].setAttribute('width',bw);
+    rs[1].setAttribute('x',x1);rs[1].setAttribute('width',hw);
+    rs[2].setAttribute('x',x1+bw-hw);rs[2].setAttribute('width',hw);
+    const tt=drag.gr.querySelector('text');tt.setAttribute('x',x1+hw+5);tt.textContent=lab(drag.x,bw,hw);
     drag.gr.setAttribute('transform',`translate(0,${(row-drag.r0)*RH})`);
-    $('#gi').textContent=drag.x.t+': '+fmt(ad(min,s))+' → '+fmt(ad(min,d))+' ('+(d-s+1)+' g)';
+    $('#gi').textContent=drag.x.t+': '+dtStr(s)+' → '+(en%1440===0?fmt(ad(min,en/1440-1))+' 24:00':dtStr(en))+' ('+durStr(en-s)+')';
   });
   svg.addEventListener('pointerup',()=>{
     if(!drag)return;const D=drag;drag=null;
     if(!D.moved){edit(D.x.id);return}
-    const row=toActual(D.row);
-    const busy=all.some(q=>q!==D.x&&q.row===row&&!(diff(min,q.due)<D.s||diff(min,q.start)>D.d));
-    if(busy){gMsg='Posizione occupata: su quella riga c’è già un’attività nello stesso periodo.';render();return}
-    D.x.start=ad(min,D.s);D.x.due=ad(min,D.d);D.x.row=row;gSpare=0;save();
+    const row=toActual(D.row),dur=D.e-D.s;
+    let s=D.s,e=D.e;
+    const o=all.filter(q=>q!==D.x&&q.row===row).map(q=>({q,s:smOf(q),e:emOf(q)})).sort((p,q)=>p.s-q.s);
+    let A=null;for(const c of o){if(c.s<=s)A=c}
+    if(A&&A.e>s){if(D.m==='m'){s=A.e;e=s+dur}else if(D.m==='l'){s=Math.min(A.e,e-step)}}
+    let cur=e;
+    for(const c of o){
+      if(c===A||c.s<s)continue;
+      if(c.s<cur){const sh=cur-c.s;c.s+=sh;c.e+=sh;setSpan(c.q,c.s,c.e);cur=c.e}else break;
+    }
+    setSpan(D.x,s,e);D.x.row=row;gSpare=0;save();
   });
   svg.addEventListener('pointercancel',()=>{drag=null;render()});
 }
-
+function maxRow(){let m=-1;S.tasks.forEach(x=>{if(live(x)&&!x.done&&Number.isInteger(x.row))m=Math.max(m,x.row)});return m}
+function sortRows(mode){
+  const all=S.tasks.filter(x=>live(x)&&!x.done&&Number.isInteger(x.row));
+  const rows=[...new Set(all.map(x=>x.row))];
+  const info=rows.map(r=>{
+    const l=all.filter(x=>x.row===r);
+    return{r,d:l.map(x=>x.start+' '+(x.ts||'00:00')).sort()[0],p:Math.max(...l.map(x=>x.pr||0))};
+  });
+  info.sort((p,q)=>mode==='pr'?(q.p-p.p||(p.d<q.d?-1:1)):(p.d<q.d?-1:p.d>q.d?1:q.p-p.p));
+  const mp=new Map(info.map((v,i)=>[v.r,i]));
+  all.forEach(x=>{x.row=mp.get(x.row)});
+  gSel.clear();gSpare=0;$('#dlg').close();save();
+}
 /* ---------- modale attività ---------- */
 const subOpts=v=>'<option value="">—</option>'+S.subs.map(n=>`<option ${n===v?'selected':''}>${esc(n)}</option>`).join('')+'<option value="__new">➕ Nuovo nome…</option>';
+const nowHM=()=>new Date().toTimeString().slice(0,5);
+const plusHour=()=>{const d=new Date(Date.now()+36e5);return d.getDate()!==new Date().getDate()?'23:59':d.toTimeString().slice(0,5)};
+const depOpts=(sel,self)=>'<option value="">—</option>'+S.tasks.filter(q=>live(q)&&!q.done&&q.id!==self).map(q=>`<option value="${q.id}" ${q.id===sel?'selected':''}>${esc(q.t.length>32?q.t.slice(0,31)+'…':q.t)}</option>`).join('');
 function edit(id){
   const fc=view==='gantt'?gFilt:filt,fs=view==='gantt'?gSub:subF;
-  const x=id?S.tasks.find(t=>t.id===id):{id:'',t:'',cat:(fc&&fc!=='__done'?fc:S.cats[0]?.n),start:today(),due:iso(Date.now()+7*864e5),note:'',tm:'',sub:fs};
-  const A=S.tasks.filter(q=>live(q)&&!q.done);
-  const pos=id?A.indexOf(x)+1:1,N=A.length+(id&&A.includes(x)?0:1);
+  const x=id?S.tasks.find(t=>t.id===id):{id:'',t:'',cat:(fc&&fc!=='__done'?fc:S.cats[0]?.n),start:today(),due:today(),ts:nowHM(),tm:plusHour(),pr:0,af:'',bf:'',note:'',sub:fs};
   $('#dc').innerHTML=`<label>Cosa devo fare</label><input id="e1" value="${esc(x.t)}">
   <label>Categoria</label><select id="e2">${S.cats.map(c=>`<option ${c.n===x.cat?'selected':''}>${esc(c.n)}</option>`).join('')}</select>
-  <div class="row"><div><label>Data inserimento</label><input id="e3" type="date" value="${x.start}"></div>
-  <div><label>Entro quando</label><input id="e4" type="date" value="${x.due}"></div></div>
   <div id="subw" style="display:${x.cat==='Lavori'?'block':'none'}"><label>Di chi è il lavoro</label><select id="e8">${subOpts(x.sub)}</select></div>
-  <label>Ora (facoltativa)</label><input id="e7" type="time" value="${x.tm||''}">
-  ${x.done?'':`<label>Priorità: posizione <b id="pv">${pos}</b> di ${N} (1 = più urgente)</label>
-  <input id="e5" type="range" min="1" max="${N}" value="${pos}" oninput="pv.textContent=this.value">`}
+  <div class="row"><div><label>Data inizio</label><input id="e3" type="date" value="${x.start}"></div>
+  <div><label>Data fine</label><input id="e4" type="date" value="${x.due}"></div></div>
+  <div class="row"><div><label>Ora inizio</label><input id="e7s" type="time" value="${x.ts||''}"></div>
+  <div><label>Ora fine</label><input id="e7" type="time" value="${x.tm||''}"></div></div>
+  <label>Priorità</label><select id="e9">${PRN.map((n,i)=>`<option value="${i}" ${(x.pr||0)===i?'selected':''}>${n}</option>`).join('')}</select>
+  <div class="row"><div><label>Da fare dopo di…</label><select id="ea">${depOpts(x.af,id)}</select></div>
+  <div><label>Da fare prima di…</label><select id="eb">${depOpts(x.bf,id)}</select></div></div>
   <label>Note</label><textarea id="e6" rows="2">${esc(x.note)}</textarea>
   <div class="row"><button class="p" id="es">Salva</button><button id="ex" class="g">Annulla</button></div>
   ${id?'<button class="d" id="edl" style="width:100%;margin-top:10px">Sposta nello storico</button>':''}`;
@@ -373,13 +456,8 @@ function edit(id){
     const t=$('#e1').value.trim();if(!t){$('#e1').focus();return}
     let st=$('#e3').value||today(),du=$('#e4').value||st;if(du<st)du=st;
     const o=id?x:{id:'t'+Date.now(),done:false};
-    Object.assign(o,{t,cat:$('#e2').value,start:st,due:du,note:$('#e6').value,tm:$('#e7').value,sub:$('#e2').value==='Lavori'?$('#e8').value:''});
+    Object.assign(o,{t,cat:$('#e2').value,start:st,due:du,note:$('#e6').value,ts:$('#e7s').value,tm:$('#e7').value,pr:+$('#e9').value,af:$('#ea').value,bf:$('#eb').value,sub:$('#e2').value==='Lavori'?$('#e8').value:''});
     if(!id)S.tasks.push(o);
-    if(!o.done&&$('#e5')){
-      const B=S.tasks.filter(q=>q!==o&&live(q)&&!q.done);
-      B.splice(+$('#e5').value-1,0,o);
-      S.tasks=B.concat(S.tasks.filter(q=>!B.includes(q)));
-    }
     $('#dlg').close();save();
   };
   if(id)$('#edl').onclick=()=>{x.del=Date.now();$('#dlg').close();save()};
@@ -398,15 +476,47 @@ document.addEventListener('click',e=>{
   if(el=g('data-sf')){subF=el.dataset.sf;render();return}
   if(el=g('data-gf')){gFilt=el.dataset.gf;gSub='';render();return}
   if(el=g('data-gsf')){gSub=el.dataset.gsf;render();return}
-  if(g('data-gr')){gSpare=Math.min(gSpare+1,12);render();return}
   if(el=g('data-gn')){
     const gw=$('#gw'),k=el.dataset.gn;if(!gw)return;
-    if(k==='today'){gw.scrollTo({left:Math.max(0,diff(gMin,today())*GW-gw.clientWidth/3),behavior:'smooth'})}
-    else if(k==='prev'){gw.scrollTo({left:Math.max(0,gw.scrollLeft-30*GW),behavior:'smooth'})}
-    else{const sl=gw.scrollLeft+30*GW;
-      if(sl+gw.clientWidth>gw.scrollWidth-8*GW){gExtra+=60;gScroll=sl;rGantt()}
+    if(k==='today'){gw.scrollTo({left:Math.max(0,diff(gMin,today())*gZ-gw.clientWidth/3),behavior:'smooth'})}
+    else if(k==='prev'){gw.scrollTo({left:Math.max(0,gw.scrollLeft-30*gZ),behavior:'smooth'})}
+    else{const sl=gw.scrollLeft+30*gZ;
+      if(sl+gw.clientWidth>gw.scrollWidth-8*gZ){gExtra+=60;gScroll=sl;drawG()}
       else gw.scrollTo({left:sl,behavior:'smooth'})}
     return}
+  if(el=g('data-rs')){const r=+el.dataset.rs;if(gSel.has(r))gSel.delete(r);else gSel.add(r);drawG();return}
+  if(el=g('data-gsort')){
+    $('#dc').innerHTML=`<p style="margin-top:0"><b>Ordina il cronoprogramma</b><br><span class="mt">Dall’alto in basso. Le attività sulla stessa riga restano insieme e le righe vuote vengono tolte.</span></p>
+    <button class="p" id="so1" style="width:100%;margin-bottom:8px">Per data: prima le più vicine</button>
+    <button class="p" id="so2" style="width:100%;margin-bottom:8px">Per priorità: prima le urgenti</button>
+    <button class="g" id="ex" style="width:100%">Annulla</button>`;
+    $('#dlg').showModal();
+    $('#ex').onclick=()=>$('#dlg').close();$('#so1').onclick=()=>sortRows('date');$('#so2').onclick=()=>sortRows('pr');return}
+  if(el=g('data-gr')){
+    if(el.dataset.gr==='+'){
+      if(!gSel.size){gSpare=Math.min(gSpare+1,12);drawG();return}
+      [...gSel].sort((p,q)=>q-p).forEach(r=>{
+        if(r>=maxRow())gSpare=Math.min(gSpare+1,12);
+        else S.tasks.forEach(x=>{if(Number.isInteger(x.row)&&x.row>r)x.row++});
+      });
+      gSel.clear();save();return}
+    if(!gSel.size){
+      if(gSpare>0){gSpare--;drawG()}else $('#gi').textContent='Tocca il numero a sinistra delle righe vuote che vuoi togliere, poi premi －.';
+      return}
+    const busy=[];
+    [...gSel].sort((p,q)=>q-p).forEach(r=>{
+      if(S.tasks.some(x=>live(x)&&!x.done&&x.row===r))busy.push(r+1);
+      else S.tasks.forEach(x=>{if(Number.isInteger(x.row)&&x.row>r)x.row--});
+    });
+    gSel.clear();
+    if(busy.length)gMsg='Riga '+busy.join(', ')+' non vuota: sposta prima le attività, poi toglila.';
+    save();return}
+  if(el=g('data-purge')){
+    const k=el.dataset.purge,set=k==='arc'?S.tasks.filter(x=>x.arc&&!x.del):S.tasks.filter(x=>x.del);
+    if(!set.length)return;
+    if(!confirm(`Eliminare PER SEMPRE tutte le ${set.length} voci ${k==='arc'?"dell'archivio":'dello storico'}?`))return;
+    if(!confirm('Ultima conferma: non si potrà più annullare. Eliminare definitivamente?'))return;
+    S.tasks=S.tasks.filter(x=>!set.includes(x));save();return}
   if(el=g('data-ds')){
     const i=+el.dataset.ds,n=S.subs[i],c=S.tasks.filter(x=>!x.del&&x.cat==='Lavori'&&x.sub===n).length;
     if(c){alert(`Non puoi eliminare "${n}": ci sono ${c} lavori assegnati.`);return}
@@ -442,7 +552,15 @@ document.addEventListener('click',e=>{
     CFG={repo:$('#s1').value.trim(),token:$('#s2').value.trim(),branch:$('#s3').value.trim()||'main',path:$('#s4').value.trim()||'data.json'};
     localStorage.setItem('cfg',JSON.stringify(CFG));sha=null;pull();render();return}
 });
+document.addEventListener('input',e=>{
+  if(e.target.id!=='gz')return;
+  const gw=$('#gw'),c=gw?(gw.scrollLeft+gw.clientWidth/2)/gZ:0;
+  gZ=+e.target.value;localStorage.setItem('gz',gZ);
+  if(gw)gScroll=Math.max(0,c*gZ-gw.clientWidth/2);
+  drawG();
+});
 document.addEventListener('change',e=>{
+  if(e.target.id==='gh'){gHours=e.target.checked;localStorage.setItem('gh',gHours?'1':'0');drawG();return}
   if(e.target.id==='e2'){$('#subw').style.display=e.target.value==='Lavori'?'block':'none';return}
   if(e.target.id==='e8'){
     const sel=e.target;
