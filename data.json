@@ -1,6 +1,6 @@
 {
  "v": 4,
- "upd": 1792610605928,
+ "upd": 1792610679801,
  "cats": [
   {
    "n": "Lavori",
@@ -247,6 +247,21 @@
    "sub": "",
    "row": 2,
    "del": 1792610605928
+  },
+  {
+   "id": "t1792610679800",
+   "done": false,
+   "t": "Prenotare intervento cataratta papà - Vicenza",
+   "cat": "ADS",
+   "start": "2026-10-22",
+   "due": "2026-10-22",
+   "note": "chaima il papà",
+   "ts": "10:00",
+   "tm": "11:30",
+   "pr": 3,
+   "af": "",
+   "bf": "",
+   "sub": ""
   }
  ],
  "subs": [
