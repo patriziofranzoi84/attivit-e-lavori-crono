@@ -1,6 +1,6 @@
 {
  "v": 4,
- "upd": 1792610806649,
+ "upd": 1792668416764,
  "cats": [
   {
    "n": "Lavori",
@@ -266,7 +266,7 @@
   },
   {
    "id": "t1792610728112",
-   "done": false,
+   "done": true,
    "t": "CTU Bratku - mandare foto",
    "cat": "Mail",
    "start": "2026-10-21",
